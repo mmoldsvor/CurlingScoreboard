@@ -8,6 +8,7 @@
 
 #define CURL_SERVICE_UUID               0x0000
 #define CAPACATIVE_CHAR_UUID            0x0001
+#define MOVEMENT_CHAR_UUID              0x0002
 
 #define BLE_CURLS_DEF(_name)                                                                        \
 static ble_curls_t _name;                                                                           \
@@ -36,6 +37,8 @@ typedef struct
     ble_curls_evt_handler_t       evt_handler;
     bool                          initial_capacative_value;
     ble_srv_cccd_security_mode_t  capacative_value_char_attr_md;
+    bool                          initial_movement_value;
+    ble_srv_cccd_security_mode_t  movement_value_char_attr_md;
 } ble_curls_init_t;
 
 struct ble_curls_s
@@ -43,6 +46,7 @@ struct ble_curls_s
     ble_curls_evt_handler_t       evt_handler;
     uint16_t                      service_handle;
     ble_gatts_char_handles_t      capacative_value_handles;
+    ble_gatts_char_handles_t      movement_value_handles;
     uint16_t                      conn_handle;
     uint8_t                       uuid_type; 
 };
@@ -51,5 +55,7 @@ struct ble_curls_s
 void ble_curls_on_ble_evt( ble_evt_t const * p_ble_evt, void * p_context);
 
 uint32_t ble_curls_capacative_value_update(ble_curls_t * p_curls, bool capacative_value);
+
+uint32_t ble_curls_movement_value_update(ble_curls_t * p_curls, bool movement_value);
 
 uint32_t ble_curls_init(ble_curls_t * p_curls, const ble_curls_init_t * p_curls_init);

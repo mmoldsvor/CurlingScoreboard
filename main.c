@@ -120,6 +120,7 @@ BLE_ADVERTISING_DEF(m_advertising);                                             
 static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID;                        /**< Handle of the current connection. */
 
 static bool m_capacative_value = 0;
+static bool m_movement_value = 0;
 
 static ble_uuid_t m_adv_uuids[] =                                               /**< Universally unique service identifiers. */
 {
@@ -314,6 +315,9 @@ static void services_init(void)
 
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&curls_init.capacative_value_char_attr_md.read_perm);
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&curls_init.capacative_value_char_attr_md.write_perm);
+
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&curls_init.movement_value_char_attr_md.read_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&curls_init.movement_value_char_attr_md.write_perm);
 
     err_code = ble_curls_init(&m_curls, &curls_init);
     APP_ERROR_CHECK(err_code);
@@ -603,20 +607,6 @@ static void bsp_event_handler(bsp_event_t event)
             }
             break; // BSP_EVENT_KEY_0*/
 
-        case BSP_EVENT_KEY_1:
-            NRF_LOG_INFO("Button Pressed");
-            m_capacative_value = true;
-            nrf_gpio_pin_clear(LED_3);
-            err_code = ble_curls_capacative_value_update(&m_curls, m_capacative_value);
-            break;
-
-        case BSP_EVENT_KEY_2:
-            NRF_LOG_INFO("Button Released");
-            m_capacative_value = false;
-            nrf_gpio_pin_set(LED_3);
-            err_code = ble_curls_capacative_value_update(&m_curls, m_capacative_value);
-            break;
-
         default:
             break;
     }
@@ -729,6 +719,19 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
         else
         {
             nrf_gpio_pin_clear(LED_3);
+        }
+    }
+    if (pin_no == BUTTON_2)
+    {
+        m_movement_value = button_action;
+        err_code = ble_curls_movement_value_update(&m_curls, m_movement_value);
+        if(!button_action)
+        {
+            nrf_gpio_pin_set(LED_4);
+        }
+        else
+        {
+            nrf_gpio_pin_clear(LED_4);
         }
     }
 }
