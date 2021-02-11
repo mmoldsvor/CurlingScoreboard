@@ -158,6 +158,15 @@ def drawCircles(img,color,circles):
 
     return output
 
+def distToHouse(circles,midX, midY):
+    for c in circles:
+        xpos = c[0]
+        ypos = c[1]
+
+            dist = sqrt((xpos-midX)**2+(ypos-midY)**2)
+
+
+
 
 
 
@@ -189,6 +198,8 @@ while(True):
     yellowCircles = detectCircle(yellowMask,5,15,35)
     output = drawCircles(image,(0,255,255),redCircles)
     output = drawCircles(output,(168,0,45),yellowCircles)
+
+    print(redCircles)
 
     outerCircle = detectCircle(outerMask,5,75,400)
     drawouter = drawCircles(image,(255,0,0),outerCircle)
