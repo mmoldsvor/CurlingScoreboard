@@ -127,7 +127,8 @@ static void leds_init(void)
 {
     bsp_board_init(BSP_INIT_LEDS);
 
-    nrf_gpio_cfg_output(3);
+    nrf_gpio_cfg_output(15);
+    nrf_gpio_cfg_output(16);
 }
 
 
@@ -205,25 +206,40 @@ static void curls_c_evt_handler(ble_curls_c_t * p_curls_c, ble_curls_c_evt_t * p
             APP_ERROR_CHECK(err_code);
 
             // LED Button Service discovered. Enable notification of Button.
-            err_code = ble_curls_c_button_notif_enable(p_curls_c);
+            err_code = ble_curls_c_capacative_notif_enable(p_curls_c);
+            err_code = ble_curls_c_movement_notif_enable(p_curls_c);
             APP_ERROR_CHECK(err_code);
         } break; // BLE_LBS_C_EVT_DISCOVERY_COMPLETE
 
         case BLE_CURLS_C_EVT_CAPACATIVE_NOTIFICATION:
         {
-            NRF_LOG_INFO("Link 0x%x, Button state changed on peer to 0x%x",
+            NRF_LOG_INFO("Link 0x%x, Capacative state changed on peer to 0x%x",
                          p_curls_c_evt->conn_handle,
                          p_curls_c_evt->params.capacative_value);
 
             if (p_curls_c_evt->params.capacative_value)
             {
-                bsp_board_led_on(LEDBUTTON_LED);
-                nrf_gpio_pin_clear(3);
+                nrf_gpio_pin_clear(15);
             }
             else
             {
-                bsp_board_led_off(LEDBUTTON_LED);
-                nrf_gpio_pin_set(3);
+                nrf_gpio_pin_set(15);
+            }
+        } break; // BLE_LBS_C_EVT_BUTTON_NOTIFICATION
+
+        case BLE_CURLS_C_EVT_MOVEMENT_NOTIFICATION:
+        {
+            NRF_LOG_INFO("Link 0x%x, Movement state changed on peer to 0x%x",
+                         p_curls_c_evt->conn_handle,
+                         p_curls_c_evt->params.movement_value);
+
+            if (p_curls_c_evt->params.movement_value)
+            {
+                nrf_gpio_pin_clear(16);
+            }
+            else
+            {
+                nrf_gpio_pin_set(16);
             }
         } break; // BLE_LBS_C_EVT_BUTTON_NOTIFICATION
 
