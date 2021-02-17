@@ -1,11 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 # vim:fenc=utf-8
-#
-# Copyright © 2020 torje <torje@torje-ubuntu>
-#
-# Distributed under terms of the MIT license.
-
 """
 Program for tracking curling stones
 """
@@ -30,6 +25,7 @@ else:
 
 image = cv2.imread(imPath)
 
+# Trackbar setup
 windowDetectionName = 'Object Detection'
 lowHName = 'Low H'
 lowSName = 'Low S'
@@ -45,7 +41,7 @@ maxValue = 255
 maxValueH = 360//2
 lowH = 50
 lowS = 100
-lowV = 100
+lowV = 0
 highH = maxValueH
 highS = maxValue
 highV = maxValue
@@ -60,7 +56,6 @@ def onTrackbar(x):
     pass
 
 def makeTrackbar():
-
     cv2.createTrackbar(HName,windowDetectionName,H,maxValueH,onTrackbar)
     cv2.createTrackbar(HMargName,windowDetectionName,HMarg,maxValueH//2,onTrackbar)
     cv2.createTrackbar(lowHName,windowDetectionName,lowH,maxValueH,onTrackbar)
@@ -96,6 +91,7 @@ def getTrackbar():
 
 
 def colorTresh(img,H):
+    """Create mask with given color, H"""
     HMarg = cv2.getTrackbarPos(HMargName,windowDetectionName)
     hMin,hMax,lowS,highS,lowV,highV,gaus = getTrackbar()
 
@@ -137,6 +133,7 @@ def detectCircle(img,gausSize,minR,maxR):
     return circles
 
 def drawCircles(img,color,circles):
+    """Draw circle with given color image"""
     output = img.copy()
     # Draw circles that are detected. 
     #logging.debug(str(color)+str(type(color[0])))
@@ -151,55 +148,70 @@ def drawCircles(img,color,circles):
             a, b, r = pt[0], pt[1], pt[2]
 
             # Draw the circumference of the circle. 
-            cv2.circle(output, (a, b), r, color, 2)
+            cv2.circle(output, (a, b), r, color, 5)
 
             # Draw a small circle (of radius 1) to show the center. 
-            cv2.circle(output, (a, b), 1, color, 3)
+            cv2.circle(output, (a, b), 1, color, 5)
 
     return output
 
-def distToHouse(circles,midX, midY):
-    for c in circles:
-        xpos = c[0]
-        ypos = c[1]
 
-            dist = sqrt((xpos-midX)**2+(ypos-midY)**2)
-
-
-
-
-
+def showIm(name,img, scale):
+    """resize and show image"""
+    cv2.imshow(name,cv2.resize(img,(0,0),fx=scale,fy=scale))
 
 makeTrackbar()
-red = (152,0,0)
-yellow = (199,180,0)
-redAr = np.uint8([[np.asarray(red)]])
-yellowAr = np.uint8([[np.asarray(yellow)]])
-redHsv = cv2.cvtColor(redAr,cv2.COLOR_RGB2HSV)
-yellowHsv = cv2.cvtColor(yellowAr,cv2.COLOR_RGB2HSV)
-outer = np.uint8([[[2,114,127]]])
-inner = np.uint8([[[195,12,32]]])
+
+#curling.png
+#red = np.uint8([[152,0,0]])
+#yellow = np.uint8([[199,180,0]])
+#outer = np.uint8([[[2,114,127]]])
+#inner = np.uint8([[[195,12,32]]])
+#stoneR = 25
+#radMarg = 30
+
+#mobil.jpg
+#red = np.uint8([[[73,19,23]]])
+#yellow = np.uint8([[[156,148,36]]])
+#outer = np.uint8([[[20,61,37]]])
+#inner = np.uint8([[[40,43,76]]])
+#stoneR = 45
+#radMarg = 30
+
+#correction.jpg
+red = np.uint8([[[73,19,23]]])
+yellow = np.uint8([[[156,148,36]]])
+outer = np.uint8([[[20,61,37]]])
+inner = np.uint8([[[40,43,76]]])
+stoneR = 45
+radMarg = 30
+
+#Convert to HSV
+redHsv = cv2.cvtColor(red,cv2.COLOR_RGB2HSV)
+yellowHsv = cv2.cvtColor(yellow,cv2.COLOR_RGB2HSV)
 outerHsv = cv2.cvtColor(outer,cv2.COLOR_RGB2HSV)
 innerHsv = cv2.cvtColor(inner,cv2.COLOR_RGB2HSV)
 
+
 while(True):
-    #detectCircle(image,gaus,15,100)
-    #detectCircle(image,gaus,75,140)
     redMask = colorTresh(image,int(redHsv[0,0,0]))
     yellowMask = colorTresh(image,int(yellowHsv[0,0,0]))
+    #showIm("redMask",redMask,0.2)
+    #showIm("yellowMask",yellowMask,0.2)
 
     outerMask = colorTresh(image,int(outerHsv[0,0,0]))
     innerMask = colorTresh(image,int(innerHsv[0,0,0]))
-
-    edges = imutils.auto_canny(image)
     #cv2.imshow("CV-edge",outerMask)
 
-    redCircles = detectCircle(redMask,5,15,35)
-    yellowCircles = detectCircle(yellowMask,5,15,35)
+    edges = imutils.auto_canny(redMask)
+    edgesy = imutils.auto_canny(yellowMask)
+    #showIm("edger",edges,0.25)
+    #showIm("edgey",edgesy,0.25)
+
+    redCircles = detectCircle(redMask,5,stoneR-radMarg,stoneR+radMarg)
+    yellowCircles = detectCircle(yellowMask,5,stoneR-radMarg,stoneR+radMarg)
     output = drawCircles(image,(0,255,255),redCircles)
     output = drawCircles(output,(168,0,45),yellowCircles)
-
-    print(redCircles)
 
     outerCircle = detectCircle(outerMask,5,75,400)
     drawouter = drawCircles(image,(255,0,0),outerCircle)
@@ -208,9 +220,7 @@ while(True):
     drawinner = drawCircles(image,(0,255,0),innerCircle)
     output = drawCircles(output,(0,255,100),innerCircle)
 
-    #cv2.imshow("CV-outer",drawinner)
-    cv2.imshow("CV-output",output)
-
+    showIm("out",output,0.25)
 
     key = cv2.waitKey(30)
     if key == ord('q') or key == 27:
