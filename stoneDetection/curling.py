@@ -97,6 +97,8 @@ def colorTresh(img,H):
 
     hMin = H-HMarg
     hMax = H+HMarg
+    #hMin = cv2.getTrackbarPos(lowHName,windowDetectionName)
+    #hMax = cv2.getTrackbarPos(highHName,windowDetectionName)
     imHsv = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
 
     #gausIm = cv2.GaussianBlur(imHsv,(gaus,gaus),0)
@@ -163,12 +165,12 @@ def showIm(name,img, scale):
 makeTrackbar()
 
 #curling.png
-#red = np.uint8([[152,0,0]])
-#yellow = np.uint8([[199,180,0]])
-#outer = np.uint8([[[2,114,127]]])
-#inner = np.uint8([[[195,12,32]]])
-#stoneR = 25
-#radMarg = 30
+red = np.uint8([[[152,0,0]]])
+yellow = np.uint8([[[199,180,0]]])
+outer = np.uint8([[[2,114,127]]])
+inner = np.uint8([[[195,12,32]]])
+stoneR = 25
+radMarg = 30
 
 #mobil.jpg
 #red = np.uint8([[[73,19,23]]])
@@ -179,12 +181,12 @@ makeTrackbar()
 #radMarg = 30
 
 #correction.jpg
-red = np.uint8([[[73,19,23]]])
-yellow = np.uint8([[[156,148,36]]])
-outer = np.uint8([[[20,61,37]]])
-inner = np.uint8([[[40,43,76]]])
-stoneR = 45
-radMarg = 30
+#red = np.uint8([[[73,19,23]]])
+#yellow = np.uint8([[[156,148,36]]])
+#outer = np.uint8([[[20,61,37]]])
+#inner = np.uint8([[[40,43,76]]])
+#stoneR = 45
+#radMarg = 30
 
 #Convert to HSV
 redHsv = cv2.cvtColor(red,cv2.COLOR_RGB2HSV)
@@ -220,7 +222,7 @@ while(True):
     drawinner = drawCircles(image,(0,255,0),innerCircle)
     output = drawCircles(output,(0,255,100),innerCircle)
 
-    showIm("out",output,0.25)
+    showIm("out",output,1)
 
     key = cv2.waitKey(30)
     if key == ord('q') or key == 27:
