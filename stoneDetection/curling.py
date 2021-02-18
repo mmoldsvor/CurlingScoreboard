@@ -150,10 +150,10 @@ def drawCircles(img,color,circles):
             a, b, r = pt[0], pt[1], pt[2]
 
             # Draw the circumference of the circle. 
-            cv2.circle(output, (a, b), r, color, 5)
+            cv2.circle(output, (a, b), r, color, 3)
 
             # Draw a small circle (of radius 1) to show the center. 
-            cv2.circle(output, (a, b), 1, color, 5)
+            cv2.circle(output, (a, b), 1, color, 3)
 
     return output
 
@@ -165,12 +165,12 @@ def showIm(name,img, scale):
 makeTrackbar()
 
 #curling.png
-red = np.uint8([[[152,0,0]]])
-yellow = np.uint8([[[199,180,0]]])
-outer = np.uint8([[[2,114,127]]])
-inner = np.uint8([[[195,12,32]]])
-stoneR = 25
-radMarg = 30
+#red = np.uint8([[[152,0,0]]])
+#yellow = np.uint8([[[199,180,0]]])
+#outer = np.uint8([[[2,114,127]]])
+#inner = np.uint8([[[195,12,32]]])
+#stoneR = 25
+#radMarg = 30
 
 #mobil.jpg
 #red = np.uint8([[[73,19,23]]])
@@ -188,6 +188,14 @@ radMarg = 30
 #stoneR = 45
 #radMarg = 30
 
+#vancouver
+red = np.uint8([[[199,61,64]]])
+yellow = np.uint8([[[216,201,36]]])
+outer = np.uint8([[[49,175,52]]])
+inner = np.uint8([[[33,43,107]]])
+stoneR = 30
+radMarg = 15
+
 #Convert to HSV
 redHsv = cv2.cvtColor(red,cv2.COLOR_RGB2HSV)
 yellowHsv = cv2.cvtColor(yellow,cv2.COLOR_RGB2HSV)
@@ -198,13 +206,14 @@ innerHsv = cv2.cvtColor(inner,cv2.COLOR_RGB2HSV)
 while(True):
     redMask = colorTresh(image,int(redHsv[0,0,0]))
     yellowMask = colorTresh(image,int(yellowHsv[0,0,0]))
-    #showIm("redMask",redMask,0.2)
-    #showIm("yellowMask",yellowMask,0.2)
+    #showIm("redMask",redMask,1)
+    #showIm("yellowMask",yellowMask,1)
 
     outerMask = colorTresh(image,int(outerHsv[0,0,0]))
     innerMask = colorTresh(image,int(innerHsv[0,0,0]))
     #cv2.imshow("CV-edge",outerMask)
-
+    showIm("CV-edge",outerMask, 0.5)
+    
     edges = imutils.auto_canny(redMask)
     edgesy = imutils.auto_canny(yellowMask)
     #showIm("edger",edges,0.25)
@@ -215,14 +224,14 @@ while(True):
     output = drawCircles(image,(0,255,255),redCircles)
     output = drawCircles(output,(168,0,45),yellowCircles)
 
-    outerCircle = detectCircle(outerMask,5,75,400)
+    outerCircle = detectCircle(outerMask,5,900,1000)
     drawouter = drawCircles(image,(255,0,0),outerCircle)
 
-    innerCircle = detectCircle(innerMask,5,80,150)
+    innerCircle = detectCircle(innerMask,5,270,350)
     drawinner = drawCircles(image,(0,255,0),innerCircle)
     output = drawCircles(output,(0,255,100),innerCircle)
 
-    showIm("out",output,1)
+    showIm("out",output,0.5)
 
     key = cv2.waitKey(30)
     if key == ord('q') or key == 27:
