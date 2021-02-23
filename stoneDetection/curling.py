@@ -40,7 +40,7 @@ gausName = "Gaus"
 maxValue = 255
 maxValueH = 360//2
 lowH = 50
-lowS = 91
+lowS = 92
 lowV = 0
 highH = maxValueH
 highS = 245
@@ -162,6 +162,11 @@ def showIm(name,img, scale):
     """resize and show image"""
     cv2.imshow(name,cv2.resize(img,(0,0),fx=scale,fy=scale))
 
+def changeRadius(circles, reduceBy):
+    for c in circles[0]:
+        c[2] -= reduceBy
+    return circles
+
 makeTrackbar()
 
 #curling.png
@@ -196,6 +201,11 @@ inner = np.uint8([[[33,43,107]]])
 stoneR = 30
 radMarg = 7
 
+innerR = 160
+innerMarg = 7
+outerR = 487
+outerMarg = 7
+
 #Convert to HSV
 redHsv = cv2.cvtColor(red,cv2.COLOR_RGB2HSV)
 yellowHsv = cv2.cvtColor(yellow,cv2.COLOR_RGB2HSV)
@@ -206,13 +216,13 @@ innerHsv = cv2.cvtColor(inner,cv2.COLOR_RGB2HSV)
 while(True):
     redMask = colorTresh(image,int(redHsv[0,0,0]))
     yellowMask = colorTresh(image,int(yellowHsv[0,0,0]))
-    showIm("redMask",redMask,0.5)
-    showIm("yellowMask",yellowMask,0.5)
+    #showIm("redMask",redMask,0.5)
+    #showIm("yellowMask",yellowMask,0.5)
 
     outerMask = colorTresh(image,int(outerHsv[0,0,0]))
     innerMask = colorTresh(image,int(innerHsv[0,0,0]))
     #cv2.imshow("CV-edge",outerMask)
-    #showIm("CV-edge",outerMask, 0.5)
+    showIm("CV-edge",outerMask, 0.5)
     
     edges = imutils.auto_canny(redMask)
     edgesy = imutils.auto_canny(yellowMask)
@@ -224,10 +234,11 @@ while(True):
     output = drawCircles(image,(0,255,255),redCircles)
     output = drawCircles(output,(168,0,45),yellowCircles)
 
-    outerCircle = detectCircle(outerMask,5,900,1000)
-    drawouter = drawCircles(image,(255,0,0),outerCircle)
+    outerCircle = detectCircle(outerMask,5,outerR-outerMarg,outerR+outerMarg)
 
-    innerCircle = detectCircle(innerMask,5,140,200)
+    output = drawCircles(output,(255,0,0),outerCircle)
+
+    innerCircle = detectCircle(innerMask,5,innerR-innerMarg,innerR+innerMarg)
     drawinner = drawCircles(image,(0,255,0),innerCircle)
     output = drawCircles(output,(0,255,100),innerCircle)
 
