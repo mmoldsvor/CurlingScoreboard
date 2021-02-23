@@ -227,7 +227,7 @@ while(True):
     outerCircle = detectCircle(outerMask,5,900,1000)
     drawouter = drawCircles(image,(255,0,0),outerCircle)
 
-    innerCircle = detectCircle(innerMask,5,270,350)
+    innerCircle = detectCircle(innerMask,5,140,200)
     drawinner = drawCircles(image,(0,255,0),innerCircle)
     output = drawCircles(output,(0,255,100),innerCircle)
 
