@@ -206,13 +206,13 @@ innerHsv = cv2.cvtColor(inner,cv2.COLOR_RGB2HSV)
 while(True):
     redMask = colorTresh(image,int(redHsv[0,0,0]))
     yellowMask = colorTresh(image,int(yellowHsv[0,0,0]))
-    #showIm("redMask",redMask,1)
-    #showIm("yellowMask",yellowMask,1)
+    showIm("redMask",redMask,0.5)
+    showIm("yellowMask",yellowMask,0.5)
 
     outerMask = colorTresh(image,int(outerHsv[0,0,0]))
     innerMask = colorTresh(image,int(innerHsv[0,0,0]))
     #cv2.imshow("CV-edge",outerMask)
-    showIm("CV-edge",outerMask, 0.5)
+    #showIm("CV-edge",outerMask, 0.5)
     
     edges = imutils.auto_canny(redMask)
     edgesy = imutils.auto_canny(yellowMask)
