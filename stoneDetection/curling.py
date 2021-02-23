@@ -47,7 +47,7 @@ highS = maxValue
 highV = maxValue
 H = 25
 HMarg = 10
-gaus = 7
+gaus = 29
 gausMax = 100
 
 cv2.namedWindow(windowDetectionName)
@@ -56,10 +56,10 @@ def onTrackbar(x):
     pass
 
 def makeTrackbar():
-    cv2.createTrackbar(HName,windowDetectionName,H,maxValueH,onTrackbar)
+    #cv2.createTrackbar(HName,windowDetectionName,H,maxValueH,onTrackbar)
     cv2.createTrackbar(HMargName,windowDetectionName,HMarg,maxValueH//2,onTrackbar)
-    cv2.createTrackbar(lowHName,windowDetectionName,lowH,maxValueH,onTrackbar)
-    cv2.createTrackbar(highHName,windowDetectionName,highH,maxValueH,onTrackbar)
+    #cv2.createTrackbar(lowHName,windowDetectionName,lowH,maxValueH,onTrackbar)
+    #cv2.createTrackbar(highHName,windowDetectionName,highH,maxValueH,onTrackbar)
     cv2.createTrackbar(lowSName,windowDetectionName,lowS,maxValue,onTrackbar)
     cv2.createTrackbar(highSName,windowDetectionName,highS,maxValue,onTrackbar)
     cv2.createTrackbar(lowVName,windowDetectionName,lowV,maxValue,onTrackbar)
@@ -194,7 +194,7 @@ yellow = np.uint8([[[216,201,36]]])
 outer = np.uint8([[[49,175,52]]])
 inner = np.uint8([[[33,43,107]]])
 stoneR = 30
-radMarg = 15
+radMarg = 7
 
 #Convert to HSV
 redHsv = cv2.cvtColor(red,cv2.COLOR_RGB2HSV)
