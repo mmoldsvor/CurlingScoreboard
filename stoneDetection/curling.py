@@ -167,14 +167,20 @@ def changeRadius(circles, reduceBy):
         c[2] -= reduceBy
     return circles
 
+def distToCenter(stone, house):
+    """Calculating distance from middle of house to stones"""
+    distx = house[0] - stone[0]
+    disty = house[1] - stone[1]
+    dist = np.sqrt(distx**2 + disty**2)-stoneR
+    return dist
+
 def midStones(stones,house):
     """return list with stones inside house"""
     houseR = house[0,0,2]
     middleStones = []
 
     for stone in stones:
-        #dist = distToCenter(stone, house)
-        dist = 50
+        dist = distToCenter(stone, house)
         if dist < houseR:
             middleStones.append(np.ndarray.tolist(stone))
 
@@ -191,7 +197,6 @@ def getPoints(rCirc,yCirc,house):
     midYellow = midStones(yCirc[0],house)
     print(midRed)
     print(midYellow)
-
 
 
 makeTrackbar()
