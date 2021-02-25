@@ -174,29 +174,35 @@ def distToCenter(stone, house):
     dist = np.sqrt(distx**2 + disty**2)-stoneR
     return dist
 
-def midStones(stones,house):
+def midStones(stones,house,color,middleStones):
     """return list with stones inside house"""
-    houseR = house[0,0,2]
-    middleStones = []
+    houseR = house[2]
 
     for stone in stones:
         dist = distToCenter(stone, house)
         if dist < houseR:
-            middleStones.append(np.ndarray.tolist(stone))
+            #middleStones.append(np.ndarray.tolist(stone).append(")
+            middleStones.append([dist,color])
 
     return middleStones
 
 
 def getPoints(rCirc,yCirc,house):
     """return points and team"""
-    #print(house[0,0,2])
-    #print(rCirc[0])
-    houseR = house[0,0,2]
+    mid = []
+    midStones(rCirc,house,"red",mid)
+    midStones(yCirc,house,"yellow",mid)
+    midSort = sorted(mid)
 
-    midRed = midStones(rCirc[0],house)
-    midYellow = midStones(yCirc[0],house)
-    print(midRed)
-    print(midYellow)
+    winner = midSort[0][1]
+    score = 0
+    for stone in midSort:
+        if stone[1] != winner:
+            break
+        else:
+            score += 1
+
+    return winner, score
 
 
 makeTrackbar()
@@ -224,18 +230,9 @@ innerHsv = cv2.cvtColor(inner,cv2.COLOR_RGB2HSV)
 while(True):
     redMask = colorTresh(image,int(redHsv[0,0,0]))
     yellowMask = colorTresh(image,int(yellowHsv[0,0,0]))
-    #showIm("redMask",redMask,0.5)
-    #showIm("yellowMask",yellowMask,0.5)
 
     outerMask = colorTresh(image,int(outerHsv[0,0,0]))
     innerMask = colorTresh(image,int(innerHsv[0,0,0]))
-    #cv2.imshow("CV-edge",outerMask)
-    showIm("CV-edge",outerMask, 0.5)
-    
-    edges = imutils.auto_canny(redMask)
-    edgesy = imutils.auto_canny(yellowMask)
-    #showIm("edger",edges,0.25)
-    #showIm("edgey",edgesy,0.25)
 
     redCircles = detectCircle(redMask,5,stoneR-radMarg,stoneR+radMarg)
     yellowCircles = detectCircle(yellowMask,5,stoneR-radMarg,stoneR+radMarg)
@@ -250,7 +247,8 @@ while(True):
     drawinner = drawCircles(image,(0,255,0),innerCircle)
     output = drawCircles(output,(0,255,100),innerCircle)
 
-    getPoints(redCircles,yellowCircles,outerCircle)
+    winner, score = getPoints(redCircles[0],yellowCircles[0],outerCircle[0,0])
+
     showIm("out",output,0.5)
 
     key = cv2.waitKey(30)
