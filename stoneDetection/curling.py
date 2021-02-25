@@ -109,9 +109,9 @@ def showIm(name,img, scale):
     """resize and show image"""
     cv2.imshow(name,cv2.resize(img,(0,0),fx=scale,fy=scale))
 
-def changeRadius(circles, reduceBy):
+def changeRadius(circles, scale):
     for c in circles[0]:
-        c[2] -= reduceBy
+        c[2] *= scale
     return circles
 
 def distToCenter(stone, house):
@@ -163,16 +163,20 @@ def main(image):
     outerCircle = detectCircle(outerMask,5,outerR-outerMarg,outerR+outerMarg)
     innerCircle = detectCircle(innerMask,5,innerR-innerMarg,innerR+innerMarg)
 
-    output = drawCircles(image,(0,255,255),redCircles)
-    output = drawCircles(output,(168,0,45),yellowCircles)
-    output = drawCircles(output,(255,0,0),outerCircle)
-    output = drawCircles(output,(0,255,100),innerCircle)
-    showIm("out",output,0.5)
-    cv2.waitKey(0)
+    changeRadius(redCircles,1.332)
+    changeRadius(yellowCircles,1.332)
 
-    print(yellowCircles)
+    output = drawCircles(image,(255, 255, 0),redCircles)
+    output = drawCircles(output,(13, 255, 37),yellowCircles)
+    output = drawCircles(output,(166,0,255),outerCircle)
+    output = drawCircles(output,(0,255,100),innerCircle)
+
+
+    #print(yellowCircles)
     winner, score = getPoints(redCircles[0],yellowCircles[0],outerCircle[0,0])
     print(winner,score)
+    showIm("out",output,0.5)
+    cv2.waitKey(0)
 
 
 if __name__ == "__main__":
