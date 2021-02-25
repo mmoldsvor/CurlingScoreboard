@@ -156,11 +156,12 @@ def main(image):
     output = drawCircles(output,(168,0,45),yellowCircles)
     output = drawCircles(output,(255,0,0),outerCircle)
     output = drawCircles(output,(0,255,100),innerCircle)
-
-    winner, score = getPoints(redCircles[0],yellowCircles[0],outerCircle[0,0])
-
     showIm("out",output,0.5)
     cv2.waitKey(0)
+
+    print(yellowCircles)
+    winner, score = getPoints(redCircles[0],yellowCircles[0],outerCircle[0,0])
+
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
