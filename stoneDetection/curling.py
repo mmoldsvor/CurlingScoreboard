@@ -167,31 +167,34 @@ def changeRadius(circles, reduceBy):
         c[2] -= reduceBy
     return circles
 
+def midStones(stones,house):
+    """return list with stones inside house"""
+    houseR = house[0,0,2]
+    middleStones = []
+
+    for stone in stones:
+        #dist = distToCenter(stone, house)
+        dist = 50
+        if dist < houseR:
+            middleStones.append(np.ndarray.tolist(stone))
+
+    return middleStones
+
+
+def getPoints(rCirc,yCirc,house):
+    """return points and team"""
+    #print(house[0,0,2])
+    #print(rCirc[0])
+    houseR = house[0,0,2]
+
+    midRed = midStones(rCirc[0],house)
+    midYellow = midStones(yCirc[0],house)
+    print(midRed)
+    print(midYellow)
+
+
+
 makeTrackbar()
-
-#curling.png
-#red = np.uint8([[[152,0,0]]])
-#yellow = np.uint8([[[199,180,0]]])
-#outer = np.uint8([[[2,114,127]]])
-#inner = np.uint8([[[195,12,32]]])
-#stoneR = 25
-#radMarg = 30
-
-#mobil.jpg
-#red = np.uint8([[[73,19,23]]])
-#yellow = np.uint8([[[156,148,36]]])
-#outer = np.uint8([[[20,61,37]]])
-#inner = np.uint8([[[40,43,76]]])
-#stoneR = 45
-#radMarg = 30
-
-#correction.jpg
-#red = np.uint8([[[73,19,23]]])
-#yellow = np.uint8([[[156,148,36]]])
-#outer = np.uint8([[[20,61,37]]])
-#inner = np.uint8([[[40,43,76]]])
-#stoneR = 45
-#radMarg = 30
 
 #vancouver
 red = np.uint8([[[199,61,64]]])
@@ -242,6 +245,7 @@ while(True):
     drawinner = drawCircles(image,(0,255,0),innerCircle)
     output = drawCircles(output,(0,255,100),innerCircle)
 
+    getPoints(redCircles,yellowCircles,outerCircle)
     showIm("out",output,0.5)
 
     key = cv2.waitKey(30)
