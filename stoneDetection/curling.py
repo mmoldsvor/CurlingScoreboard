@@ -21,6 +21,7 @@ yellow = np.uint8([[[216,201,36]]])
 outer = np.uint8([[[49,175,52]]])
 inner = np.uint8([[[33,43,107]]])
 maxValue = 255
+maxValueH = 360//2
 lowH = 50
 lowS = 92
 lowV = 0
@@ -51,7 +52,17 @@ def colorTresh(img,H):
     hMax = H+HMarg
     imHsv = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
 
-    clrTresh = cv2.inRange(imHsv,(hMin,lowS,lowV),(hMax,highS,highV))
+    if hMin < 0:
+        clrTreshLower =cv2.inRange(imHsv,(hMin%maxValueH,lowS,lowV),(maxValueH,highS,highV))
+        clrTreshUp = cv2.inRange(imHsv,(0,lowS,lowV),(hMax,highS,highV))
+        clrTresh = clrTreshLower | clrTreshUp
+    elif hMax > maxValueH:
+        clrTreshLower = cv2.inRange(imHsv,(hMin,lowS,lowV),(maxValueH,highS,highV))
+        clrTreshUp = cv2.inRange(imHsv,(0,lowS,lowV),(hMax%maxValueH,highS,highV))
+        clrTresh = clrTreshLower | clrTreshUp
+    else:
+        clrTresh = cv2.inRange(imHsv,(hMin,lowS,lowV),(hMax,highS,highV))
+
 
     gausMask = cv2.GaussianBlur(clrTresh,(gaus,gaus),0)
     output = cv2.bitwise_and(gausMask,gausMask,mask=clrTresh)
@@ -161,6 +172,7 @@ def main(image):
 
     print(yellowCircles)
     winner, score = getPoints(redCircles[0],yellowCircles[0],outerCircle[0,0])
+    print(winner,score)
 
 
 if __name__ == "__main__":
