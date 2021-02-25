@@ -77,12 +77,21 @@
 #include "nrf_ble_gatt.h"
 #include "nrf_ble_qwr.h"
 #include "nrf_pwr_mgmt.h"
+#include "nrf_delay.h"
+
 #include "ble_curl.h"
+
+#include "nrf_drv_twi.h"
+#include "nrf_gpiote.h"
+#include "nrf_gpio.h"
+#include "nrf_drv_gpiote.h"
+#include "nrf_drv_lpcomp.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
+#include "fds.h"
 
 #define DEVICE_NAME                     "Curl"                       /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME               "NordicSemiconductor"                   /**< Manufacturer. Will be passed to Device Information Service. */
@@ -112,6 +121,9 @@
 
 #define DEAD_BEEF                       0xDEADBEEF                              /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
+#define TWI_INSTANCE_ID                 0
+#define TWI_SLAVE_ADDRESS               0x68
+
 NRF_BLE_GATT_DEF(m_gatt);                                                       /**< GATT module instance. */
 NRF_BLE_QWR_DEF(m_qwr);                                                         /**< Context for the Queued Write module.*/
 BLE_CURLS_DEF(m_curls);
@@ -119,12 +131,35 @@ BLE_ADVERTISING_DEF(m_advertising);                                             
 
 static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID;                        /**< Handle of the current connection. */
 
+APP_TIMER_DEF(m_app_advertisement_timer);
+static bool m_advertising_bool = false;
+static bool m_connection_bool = false;
+
 static bool m_capacative_value = 0;
 static bool m_movement_value = 0;
+
+static const nrf_drv_twi_t m_twi = NRF_DRV_TWI_INSTANCE(TWI_INSTANCE_ID);
+static volatile bool m_xfer_done = false;
 
 static ble_uuid_t m_adv_uuids[] =                                               /**< Universally unique service identifiers. */
 {
     {CURL_SERVICE_UUID, BLE_UUID_TYPE_VENDOR_BEGIN }
+};
+
+
+static bool volatile m_fds_initialized;
+
+static uint32_t m_identifier_value = 0;
+
+#define CONFIG_FILE 0x1111
+#define CONFIG_REC_KEY 0x2222
+
+static fds_record_t const m_dummy_record =
+{
+    .file_id           = CONFIG_FILE,
+    .key               = CONFIG_REC_KEY,
+    .data.p_data       = &m_identifier_value,
+    .data.length_words = 1,
 };
 
 
@@ -168,6 +203,16 @@ static void pm_evt_handler(pm_evt_t const * p_evt)
     }
 }
 
+static void timer_timeout_handler(void * p_context)
+{
+    ret_code_t err_code;
+
+    if (m_advertising_bool)
+    {
+        nrf_gpio_pin_toggle(13);
+    }
+}
+
 
 /**@brief Function for the Timer initialization.
  *
@@ -175,19 +220,13 @@ static void pm_evt_handler(pm_evt_t const * p_evt)
  */
 static void timers_init(void)
 {
-    // Initialize timer module.
-    ret_code_t err_code = app_timer_init();
+    ret_code_t err_code;
+
+    err_code = app_timer_init();
     APP_ERROR_CHECK(err_code);
 
-    // Create timers.
-
-    /* YOUR_JOB: Create any timers to be used by the application.
-                 Below is an example of how to create a timer.
-                 For every new timer needed, increase the value of the macro APP_TIMER_MAX_TIMERS by
-                 one.
-       ret_code_t err_code;
-       err_code = app_timer_create(&m_app_timer_id, APP_TIMER_MODE_REPEATED, timer_timeout_handler);
-       APP_ERROR_CHECK(err_code); */
+    err_code = app_timer_create(&m_app_advertisement_timer, APP_TIMER_MODE_REPEATED, timer_timeout_handler);
+    APP_ERROR_CHECK(err_code);
 }
 
 
@@ -208,10 +247,6 @@ static void gap_params_init(void)
                                           (const uint8_t *)DEVICE_NAME,
                                           strlen(DEVICE_NAME));
     APP_ERROR_CHECK(err_code);
-
-    /* YOUR_JOB: Use an appearance value matching the application's use case.
-       err_code = sd_ble_gap_appearance_set(BLE_APPEARANCE_);
-       APP_ERROR_CHECK(err_code); */
 
     memset(&gap_conn_params, 0, sizeof(gap_conn_params));
 
@@ -248,12 +283,19 @@ static void nrf_qwr_error_handler(uint32_t nrf_error)
 
 static void on_curls_evt(ble_curls_t * p_curl_service, ble_curls_evt_t * p_evt)
 {
+    ret_code_t err_code;
+ 
     switch(p_evt->evt_type)
     {
         case BLE_CURLS_EVT_NOTIFICATION_ENABLED:
             break;
 
         case BLE_CURLS_EVT_NOTIFICATION_DISABLED:
+            break;
+
+        case BLE_CURLS_EVT_NOTIFICATION_IDENTIFIER_ENABLED:
+            err_code = ble_curls_identifier_value_update(&m_curls, (uint8_t) m_identifier_value);
+            APP_ERROR_CHECK(err_code);
             break;
             
         case BLE_CURLS_EVT_CONNECTED:
@@ -262,37 +304,17 @@ static void on_curls_evt(ble_curls_t * p_curl_service, ble_curls_evt_t * p_evt)
         case BLE_CURLS_EVT_DISCONNECTED:
             break;
 
+        case BLE_CURLS_EVT_IDENTIFIER_UPDATED:
+            printf("%x\n", p_evt->identifier_value);
+            fds_update_identifier(p_evt->identifier_value);
+            break;
+
         default:
               // No implementation needed.
               break;
     }
 }
 
-/**@brief Function for handling the YYY Service events.
- * YOUR_JOB implement a service handler function depending on the event the service you are using can generate
- *
- * @details This function will be called for all YY Service events which are passed to
- *          the application.
- *
- * @param[in]   p_yy_service   YY Service structure.
- * @param[in]   p_evt          Event received from the YY Service.
- *
- *
-static void on_yys_evt(ble_yy_service_t     * p_yy_service,
-                       ble_yy_service_evt_t * p_evt)
-{
-    switch (p_evt->evt_type)
-    {
-        case BLE_YY_NAME_EVT_WRITE:
-            APPL_LOG("[APPL]: charact written with value %s. ", p_evt->params.char_xx.value.p_str);
-            break;
-
-        default:
-            // No implementation needed.
-            break;
-    }
-}
-*/
 
 /**@brief Function for initializing services that will be used by the application.
  */
@@ -318,6 +340,9 @@ static void services_init(void)
 
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&curls_init.movement_value_char_attr_md.read_perm);
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&curls_init.movement_value_char_attr_md.write_perm);
+
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&curls_init.identifier_value_char_attr_md.read_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&curls_init.identifier_value_char_attr_md.write_perm);
 
     err_code = ble_curls_init(&m_curls, &curls_init);
     APP_ERROR_CHECK(err_code);
@@ -383,10 +408,10 @@ static void conn_params_init(void)
  */
 static void application_timers_start(void)
 {
-    /* YOUR_JOB: Start your timers. below is an example of how to start a timer.
-       ret_code_t err_code;
-       err_code = app_timer_start(m_app_timer_id, TIMER_INTERVAL, NULL);
-       APP_ERROR_CHECK(err_code); */
+
+    ret_code_t err_code;
+    err_code = app_timer_start(m_app_advertisement_timer, APP_TIMER_TICKS(500), NULL);
+    APP_ERROR_CHECK(err_code);
 
 }
 
@@ -399,20 +424,13 @@ static void sleep_mode_enter(void)
 {
     ret_code_t err_code;
 
-    err_code = bsp_indication_set(BSP_INDICATE_IDLE);
-    APP_ERROR_CHECK(err_code);
-
-    // Prepare wakeup buttons.
-    err_code = bsp_btn_ble_sleep_mode_prepare();
-    APP_ERROR_CHECK(err_code);
-
     // Go to system-off mode (this function will not return; wakeup will cause a reset).
     err_code = sd_power_system_off();
     APP_ERROR_CHECK(err_code);
 }
 
 
-/**@brief Function for handling advertising events.
+/**@brief Function for handling  events.
  *
  * @details This function will be called for advertising events which are passed to the application.
  *
@@ -426,8 +444,7 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
     {
         case BLE_ADV_EVT_FAST:
             NRF_LOG_INFO("Fast advertising.");
-            err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING);
-            APP_ERROR_CHECK(err_code);
+            m_advertising_bool = true;
             break;
 
         case BLE_ADV_EVT_IDLE:
@@ -453,13 +470,17 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
     {
         case BLE_GAP_EVT_DISCONNECTED:
             NRF_LOG_INFO("Disconnected.");
-            // LED indication will be changed when advertising starts.
+            m_connection_bool = false;
+            nrf_gpio_pin_clear(13);
+
             break;
 
         case BLE_GAP_EVT_CONNECTED:
             NRF_LOG_INFO("Connected.");
-            err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
-            APP_ERROR_CHECK(err_code);
+            m_advertising_bool = false;
+            m_connection_bool = true;
+            nrf_gpio_pin_set(13);
+
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
             err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
             APP_ERROR_CHECK(err_code);
@@ -491,6 +512,12 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gatts_evt.conn_handle,
                                              BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
             APP_ERROR_CHECK(err_code);
+            break;
+        
+        case BLE_GAP_EVT_ADV_SET_TERMINATED:
+            m_advertising_bool = false;
+            nrf_gpio_pin_clear(13);
+            printf("Timeout Reached\n");
             break;
 
         default:
@@ -573,46 +600,6 @@ static void delete_bonds(void)
 }
 
 
-/**@brief Function for handling events from the BSP module.
- *
- * @param[in]   event   Event generated when button is pressed.
- */
-static void bsp_event_handler(bsp_event_t event)
-{
-    ret_code_t err_code;
-
-    switch (event)
-    {
-        /*case BSP_EVENT_SLEEP:
-            sleep_mode_enter();
-            break; // BSP_EVENT_SLEEP
-
-        case BSP_EVENT_DISCONNECT:
-            err_code = sd_ble_gap_disconnect(m_conn_handle,
-                                             BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
-            if (err_code != NRF_ERROR_INVALID_STATE)
-            {
-                APP_ERROR_CHECK(err_code);
-            }
-            break; // BSP_EVENT_DISCONNECT
-
-        case BSP_EVENT_WHITELIST_OFF:
-            if (m_conn_handle == BLE_CONN_HANDLE_INVALID)
-            {
-                err_code = ble_advertising_restart_without_whitelist(&m_advertising);
-                if (err_code != NRF_ERROR_INVALID_STATE)
-                {
-                    APP_ERROR_CHECK(err_code);
-                }
-            }
-            break; // BSP_EVENT_KEY_0*/
-
-        default:
-            break;
-    }
-}
-
-
 /**@brief Function for initializing the Advertising functionality.
  */
 static void advertising_init(void)
@@ -638,18 +625,6 @@ static void advertising_init(void)
     APP_ERROR_CHECK(err_code);
 
     ble_advertising_conn_cfg_tag_set(&m_advertising, APP_BLE_CONN_CFG_TAG);
-}
-
-/**@brief Function for initializing buttons and leds.
- *
- * @param[out] p_erase_bonds  Will be true if the clear bonding button was pressed to wake the application up.
- */
-static void leds_init()
-{
-    ret_code_t err_code;
-
-    err_code = bsp_init(BSP_INIT_LEDS, bsp_event_handler);
-    APP_ERROR_CHECK(err_code);
 }
 
 
@@ -704,54 +679,274 @@ static void advertising_start(bool erase_bonds)
     }
 }
 
-static void button_event_handler(uint8_t pin_no, uint8_t button_action)
+void twi_slave_init(void)
+{
+    ret_code_t err_code;
+    uint8_t register_sequence[] = {0x6B, 0x00,
+                                   0x68, 0x07,
+                                   0x37, 0x30,
+                                   0x1C, 0x01,
+                                   0x21, 10,
+                                   0x22, 2,
+                                   0x38, 0x20};
+  
+    nrf_delay_ms(200);
+    for (int i = 0; i < sizeof(register_sequence)/(2*sizeof(uint8_t)); i++)
+    {
+        m_xfer_done = false;
+
+        uint8_t write_register[2] = {register_sequence[2*i], register_sequence[(2*i) + 1]};
+        err_code = nrf_drv_twi_tx(&m_twi, TWI_SLAVE_ADDRESS, write_register, sizeof(write_register), false);
+        APP_ERROR_CHECK(err_code);
+        while (m_xfer_done == false);
+    }
+
+    NRF_LOG_INFO("MPU-6050 CONFIGURED\n");
+}
+
+void twi_handler(nrf_drv_twi_evt_t const * p_event, void * p_context)
+{
+    if (p_event->type == NRF_DRV_TWI_EVT_DONE)
+    {
+        m_xfer_done = true;
+    }
+}
+
+void twi_init (void)
 {
     ret_code_t err_code;
 
-    if (pin_no == BUTTON_1)
+    const nrf_drv_twi_config_t twi_slave_config = {
+       .scl                = 16,
+       .sda                = 15,
+       .frequency          = NRF_DRV_TWI_FREQ_100K,
+       .interrupt_priority = APP_IRQ_PRIORITY_HIGH,
+       .clear_bus_init     = false
+    };
+
+    err_code = nrf_drv_twi_init(&m_twi, &twi_slave_config, twi_handler, NULL);
+    APP_ERROR_CHECK(err_code);
+
+    nrf_drv_twi_enable(&m_twi);
+}
+
+void read_zero_movement_register()
+{
+    ret_code_t err_code;
+
+    uint8_t reg = 0x61;
+    nrf_drv_twi_xfer_desc_t xfer = NRF_DRV_TWI_XFER_DESC_TXRX(TWI_SLAVE_ADDRESS, &reg, sizeof(reg), (bool*)&m_movement_value, sizeof(m_movement_value));
+    uint32_t flags = NRF_DRV_TWI_FLAG_TX_NO_STOP;
+    
+    err_code = nrf_drv_twi_xfer(&m_twi, &xfer, flags);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = ble_curls_movement_value_update(&m_curls, m_movement_value);
+
+    printf("%x\n", m_movement_value);
+    if (m_movement_value == 0)
     {
-        m_capacative_value = button_action;
-        err_code = ble_curls_capacative_value_update(&m_curls, m_capacative_value);
-        if(!button_action)
-        {
-            nrf_gpio_pin_set(LED_3);
-        }
-        else
-        {
-            nrf_gpio_pin_clear(LED_3);
-        }
+        nrf_gpio_pin_clear(12);
     }
-    if (pin_no == BUTTON_2)
+    else
     {
-        m_movement_value = button_action;
-        err_code = ble_curls_movement_value_update(&m_curls, m_movement_value);
-        if(!button_action)
+        nrf_gpio_pin_set(12);
+    }
+}
+
+void zero_movement_interrupt(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action) 
+{
+    if (pin == 14)
+    {
+        read_zero_movement_register();
+    }
+}
+
+void gpiote_init(void)
+{
+    ret_code_t err_code;
+
+    nrf_drv_gpiote_in_config_t event_config = GPIOTE_CONFIG_IN_SENSE_LOTOHI(true);
+    err_code = nrf_drv_gpiote_in_init(14, &event_config, zero_movement_interrupt);
+    APP_ERROR_CHECK(err_code);
+
+    nrf_drv_gpiote_in_event_enable(14, true);
+}
+
+static void lpcomp_event_handler(nrf_lpcomp_event_t event)
+{
+    if (event == NRF_LPCOMP_EVENT_CROSS )
+    {   
+        ret_code_t err_code;
+
+        NRF_LPCOMP->TASKS_SAMPLE = 1;
+        uint8_t result = NRF_LPCOMP->RESULT;
+
+        err_code = ble_curls_capacative_value_update(&m_curls, result);
+        
+        if (result == 1)
         {
-            nrf_gpio_pin_set(LED_4);
+            nrf_gpio_pin_set(11);
+            nrf_gpio_pin_set(27);
         }
         else
         {
-            nrf_gpio_pin_clear(LED_4);
+            nrf_gpio_pin_clear(11);
+            nrf_gpio_pin_clear(27);
+        }
+
+        if (!m_connection_bool && !m_advertising_bool) 
+        {
+            m_advertising_bool = true;
+            advertising_start(false);
         }
     }
 }
 
-static void app_buttons_init(void)
+static void lpcomp_init(void)
 {
     ret_code_t err_code;
 
-    static app_button_cfg_t buttons[] = 
-    {
-        {BUTTON_1, false, BUTTON_PULL, button_event_handler},
-        {BUTTON_2, false, BUTTON_PULL, button_event_handler},
-        {BUTTON_3, false, BUTTON_PULL, button_event_handler},
-        {BUTTON_4, false, BUTTON_PULL, button_event_handler},
-    };
-    err_code = app_button_init(buttons, ARRAY_SIZE(buttons), APP_TIMER_TICKS(50));
+    nrf_drv_lpcomp_config_t config = NRF_DRV_LPCOMP_DEFAULT_CONFIG;
+    config.input = NRF_LPCOMP_INPUT_7;
+    config.hal.detection = NRF_LPCOMP_DETECT_CROSS;
+
+    err_code = nrf_drv_lpcomp_init(&config, lpcomp_event_handler);
     APP_ERROR_CHECK(err_code);
 
-    err_code = app_button_enable();
+    nrf_drv_lpcomp_enable();
+}
+
+static void led_init(void)
+{
+    nrf_gpio_cfg_output(11);
+    nrf_gpio_cfg_output(12);
+    nrf_gpio_cfg_output(13);
+
+    nrf_gpio_pin_clear(11);
+    nrf_gpio_pin_clear(12);
+    nrf_gpio_pin_clear(13);
+}
+
+static volatile uint8_t write_flag=0;
+
+static void fds_evt_handler(fds_evt_t const * p_evt)
+{
+    switch (p_evt->id)
+    {
+        case FDS_EVT_INIT:
+            if (p_evt->result == NRF_SUCCESS)
+            {
+                m_fds_initialized = true;
+            }
+            break;
+
+        case FDS_EVT_WRITE:
+        {
+            if (p_evt->result == NRF_SUCCESS)
+            {
+                NRF_LOG_INFO("Record ID:\t0x%04x",  p_evt->write.record_id);
+                NRF_LOG_INFO("File ID:\t0x%04x",    p_evt->write.file_id);
+                NRF_LOG_INFO("Record key:\t0x%04x", p_evt->write.record_key);
+            }
+        } break;
+
+        default:
+            break;
+    }
+}
+
+static void curls_fds_init()
+{
+    ret_code_t err_code;
+    
+    (void) fds_register(fds_evt_handler);
+
+    NRF_LOG_INFO("Initializing fds...");
+
+    err_code = fds_init();
     APP_ERROR_CHECK(err_code);
+
+    while (!m_fds_initialized)
+    {
+        
+    }
+}
+
+void fds_update_identifier(uint32_t new_identifier)
+{
+    ret_code_t err_code;
+
+    fds_record_desc_t desc = {0};
+    fds_find_token_t  tok  = {0};
+
+    err_code = fds_record_find(CONFIG_FILE, CONFIG_REC_KEY, &desc, &tok);
+
+    if (err_code == NRF_SUCCESS)
+    {
+        m_identifier_value = new_identifier;
+        /* Write the updated record to flash. */
+        err_code = fds_record_update(&desc, &m_dummy_record);
+        NRF_LOG_INFO("Successfully updated identifier to %x.", m_identifier_value);
+        if ((err_code != NRF_SUCCESS) && (err_code == FDS_ERR_NO_SPACE_IN_FLASH))
+        {
+            NRF_LOG_INFO("No space in flash, delete some records to update the config file.");
+        }
+        else
+        {
+            APP_ERROR_CHECK(err_code);
+        }
+    }
+    else
+    {
+        m_identifier_value = new_identifier;
+        /* System config not found; write a new one. */
+        NRF_LOG_INFO("Writing config file...");
+
+        err_code = fds_record_write(&desc, &m_dummy_record);
+        if ((err_code != NRF_SUCCESS) && (err_code == FDS_ERR_NO_SPACE_IN_FLASH))
+        {
+            NRF_LOG_INFO("No space in flash, delete some records to update the config file.");
+        }
+        else
+        {
+            APP_ERROR_CHECK(err_code);
+        }
+    }
+}
+
+void fds_read_identifier(void)
+{
+    ret_code_t err_code;
+
+    fds_record_desc_t desc = {0};
+    fds_find_token_t  tok  = {0};
+    NRF_LOG_INFO("Reading Identifier");
+
+    err_code = fds_record_find(CONFIG_FILE, CONFIG_REC_KEY, &desc, &tok);
+
+    if (err_code == NRF_SUCCESS)
+    {
+        /* A config file is in flash. Let's update it. */
+        fds_flash_record_t config = {0};
+
+        /* Open the record and read its contents. */
+        err_code = fds_record_open(&desc, &config);
+        APP_ERROR_CHECK(err_code);
+
+        /* Copy the configuration from flash into m_dummy_cfg. */
+        memcpy(&m_identifier_value, config.p_data, sizeof(uint32_t));
+        NRF_LOG_INFO("Current identifier is: %x.", m_identifier_value);
+
+        if ((err_code != NRF_SUCCESS) && (err_code == FDS_ERR_NO_SPACE_IN_FLASH))
+        {
+            NRF_LOG_INFO("No space in flash, delete some records to update the config file.");
+        }
+        else
+        {
+            APP_ERROR_CHECK(err_code);
+        }
+    }
 }
 
 /**@brief Function for application main entry.
@@ -759,12 +954,28 @@ static void app_buttons_init(void)
 int main(void)
 {
     bool erase_bonds;
+    ret_code_t err_code;
 
     // Initialize.
-    log_init();
+     log_init();
+
+    curls_fds_init();
+
+    led_init();
+
+    twi_init();
+    twi_slave_init();
+    
+    err_code = nrf_drv_gpiote_init();
+    APP_ERROR_CHECK(err_code);
+    gpiote_init();
+
+    lpcomp_init();
+
+    fds_read_identifier();
+
     timers_init();
-    leds_init();
-    app_buttons_init();
+
     power_management_init();
     ble_stack_init();
     gap_params_init();
@@ -779,6 +990,8 @@ int main(void)
     application_timers_start();
 
     advertising_start(erase_bonds);
+
+    read_zero_movement_register();
 
     // Enter main loop.
     for (;;)
