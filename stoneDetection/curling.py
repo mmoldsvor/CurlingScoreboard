@@ -167,6 +167,13 @@ def changeRadius(circles, reduceBy):
         c[2] -= reduceBy
     return circles
 
+def distToCenter(stone, house):
+    """Calculating distance from middle of house to stones"""
+    distx = house[0] - stone[0]
+    disty = house[1] - stone[1]
+    dist = np.sqrt(distx**2 + disty**2)-stoneR
+    return dist
+
 makeTrackbar()
 
 #curling.png
