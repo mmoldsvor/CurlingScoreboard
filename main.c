@@ -69,6 +69,17 @@
 #include "nrf_log_default_backends.h"
 
 
+#include "nrf_drv_usbd.h"
+#include "app_usbd_core.h"
+#include "app_usbd.h"
+#include "app_usbd_string_desc.h"
+#include "app_usbd_cdc_acm.h"
+#include "app_usbd_serial_num.h"
+#include "nrf_drv_power.h"
+
+#include "nrf_drv_clock.h"
+
+
 #define APP_BLE_CONN_CFG_TAG      1                                     /**< Tag that refers to the BLE stack configuration that is set with @ref sd_ble_cfg_set. The default tag is @ref APP_BLE_CONN_CFG_TAG. */
 #define APP_BLE_OBSERVER_PRIO     3                                     /**< BLE observer priority of the application. There is no need to modify this value. */
 
@@ -90,6 +101,35 @@ NRF_BLE_GQ_DEF(m_ble_gatt_queue,                                        /**< BLE
 
 static char const m_target_periph_name[] = "Curl";             /**< Name of the device to try to connect to. This name is searched for in the scanning report data. */
 
+
+static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
+                                    app_usbd_cdc_acm_user_event_t event);
+
+#define CDC_ACM_COMM_INTERFACE  0
+#define CDC_ACM_COMM_EPIN       NRF_DRV_USBD_EPIN2
+
+#define CDC_ACM_DATA_INTERFACE  1
+#define CDC_ACM_DATA_EPIN       NRF_DRV_USBD_EPIN1
+#define CDC_ACM_DATA_EPOUT      NRF_DRV_USBD_EPOUT1
+
+APP_USBD_CDC_ACM_GLOBAL_DEF(m_app_cdc_acm,
+                            cdc_acm_user_ev_handler,
+                            CDC_ACM_COMM_INTERFACE,
+                            CDC_ACM_DATA_INTERFACE,
+                            CDC_ACM_COMM_EPIN,
+                            CDC_ACM_DATA_EPIN,
+                            CDC_ACM_DATA_EPOUT,
+                            APP_USBD_CDC_COMM_PROTOCOL_AT_V250);
+
+                            
+#define READ_SIZE 1
+
+static char m_rx_buffer[READ_SIZE];
+static char m_tx_buffer[NRF_DRV_USBD_EPSIZE];
+static uint8_t data_arr = 0;
+static bool m_send_flag = 0;
+
+static uint8_t m_previous_values[NRF_SDH_BLE_CENTRAL_LINK_COUNT] = {0};
 
 /**@brief Function for handling asserts in the SoftDevice.
  *
@@ -125,7 +165,7 @@ static void curls_error_handler(uint32_t nrf_error)
  */
 static void leds_init(void)
 {
-    bsp_board_init(BSP_INIT_LEDS);
+    //bsp_board_init(BSP_INIT_LEDS);
 
     nrf_gpio_cfg_output(15);
     nrf_gpio_cfg_output(16);
@@ -182,7 +222,7 @@ static void scan_start(void)
     ret = nrf_ble_scan_start(&m_scan);
     APP_ERROR_CHECK(ret);
     // Turn on the LED to signal scanning.
-    bsp_board_led_on(CENTRAL_SCANNING_LED);
+    //bsp_board_led_on(CENTRAL_SCANNING_LED);
 }
 
 
@@ -208,6 +248,8 @@ static void curls_c_evt_handler(ble_curls_c_t * p_curls_c, ble_curls_c_evt_t * p
             // LED Button Service discovered. Enable notification of Button.
             err_code = ble_curls_c_capacative_notif_enable(p_curls_c);
             err_code = ble_curls_c_movement_notif_enable(p_curls_c);
+            err_code = ble_curls_c_identifier_notif_enable(p_curls_c);
+
             APP_ERROR_CHECK(err_code);
         } break; // BLE_LBS_C_EVT_DISCOVERY_COMPLETE
 
@@ -216,14 +258,20 @@ static void curls_c_evt_handler(ble_curls_c_t * p_curls_c, ble_curls_c_evt_t * p
             NRF_LOG_INFO("Link 0x%x, Capacative state changed on peer to 0x%x",
                          p_curls_c_evt->conn_handle,
                          p_curls_c_evt->params.capacative_value);
+  
+            uint8_t mask = ~1;
+            data_arr = (m_previous_values[p_curls_c_evt->conn_handle] & mask) | p_curls_c_evt->params.capacative_value;
+            m_previous_values[p_curls_c_evt->conn_handle] = data_arr;
+            
+            app_usbd_cdc_acm_write(&m_app_cdc_acm, &data_arr, sizeof(data_arr));
 
             if (p_curls_c_evt->params.capacative_value)
             {
-                nrf_gpio_pin_clear(15);
+                nrf_gpio_pin_clear(12);
             }
             else
             {
-                nrf_gpio_pin_set(15);
+                nrf_gpio_pin_set(12);
             }
         } break; // BLE_LBS_C_EVT_BUTTON_NOTIFICATION
 
@@ -232,16 +280,29 @@ static void curls_c_evt_handler(ble_curls_c_t * p_curls_c, ble_curls_c_evt_t * p
             NRF_LOG_INFO("Link 0x%x, Movement state changed on peer to 0x%x",
                          p_curls_c_evt->conn_handle,
                          p_curls_c_evt->params.movement_value);
+            
+            uint8_t mask = ~2;
+            data_arr = (m_previous_values[p_curls_c_evt->conn_handle] & mask) | (p_curls_c_evt->params.movement_value << 1);
+            m_previous_values[p_curls_c_evt->conn_handle] = data_arr;
+
+            app_usbd_cdc_acm_write(&m_app_cdc_acm, &data_arr, sizeof(data_arr));
 
             if (p_curls_c_evt->params.movement_value)
             {
-                nrf_gpio_pin_clear(16);
+                nrf_gpio_pin_clear(8);
             }
             else
             {
-                nrf_gpio_pin_set(16);
+                nrf_gpio_pin_set(8);
             }
         } break; // BLE_LBS_C_EVT_BUTTON_NOTIFICATION
+
+        case BLE_CURLS_C_EVT_IDENTIFIER_NOTIFICATION:
+        {
+            uint8_t mask = 3;
+            data_arr = (m_previous_values[p_curls_c_evt->conn_handle] & mask) | (p_curls_c_evt->params.identifier_value << 2);
+            m_previous_values[p_curls_c_evt->conn_handle] = data_arr;
+        } break;
 
         default:
             // No implementation needed.
@@ -284,15 +345,15 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 
             // Update LEDs status and check whether it is needed to look for more
             // peripherals to connect to.
-            bsp_board_led_on(CENTRAL_CONNECTED_LED);
+            //bsp_board_led_on(CENTRAL_CONNECTED_LED);
             if (ble_conn_state_central_conn_count() == NRF_SDH_BLE_CENTRAL_LINK_COUNT)
             {
-                bsp_board_led_off(CENTRAL_SCANNING_LED);
+                //bsp_board_led_off(CENTRAL_SCANNING_LED);
             }
             else
             {
                 // Resume scanning.
-                bsp_board_led_on(CENTRAL_SCANNING_LED);
+                //bsp_board_led_on(CENTRAL_SCANNING_LED);
                 scan_start();
             }
         } break; // BLE_GAP_EVT_CONNECTED
@@ -311,14 +372,14 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
                 APP_ERROR_CHECK(err_code);
 
                 // Turn off the LED that indicates the connection.
-                bsp_board_led_off(CENTRAL_CONNECTED_LED);
+                //bsp_board_led_off(CENTRAL_CONNECTED_LED);
             }
 
             // Start scanning.
             scan_start();
 
             // Turn on the LED for indicating scanning.
-            bsp_board_led_on(CENTRAL_SCANNING_LED);
+            //bsp_board_led_on(CENTRAL_SCANNING_LED);
 
         } break;
 
@@ -547,14 +608,126 @@ static void gatt_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
+static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
+                                    app_usbd_cdc_acm_user_event_t event)
+{
+    app_usbd_cdc_acm_t const * p_cdc_acm = app_usbd_cdc_acm_class_get(p_inst);
+
+    switch (event)
+    {
+        case APP_USBD_CDC_ACM_USER_EVT_PORT_OPEN:
+        {
+
+            /*Setup first transfer*/
+            ret_code_t ret = app_usbd_cdc_acm_read(&m_app_cdc_acm,
+                                                   m_rx_buffer,
+                                                   READ_SIZE);
+            UNUSED_VARIABLE(ret);
+            break;
+        }
+        case APP_USBD_CDC_ACM_USER_EVT_PORT_CLOSE:
+            break;
+        case APP_USBD_CDC_ACM_USER_EVT_TX_DONE:
+            break;
+        case APP_USBD_CDC_ACM_USER_EVT_RX_DONE:
+        {
+            ret_code_t ret;
+            NRF_LOG_INFO("Bytes waiting: %d", app_usbd_cdc_acm_bytes_stored(p_cdc_acm));
+            do
+            {
+                /*Get amount of data transfered*/
+                size_t size = app_usbd_cdc_acm_rx_size(p_cdc_acm);
+                NRF_LOG_INFO("RX: size: %lu char: %c", size, m_rx_buffer[0]);
+
+                /* Fetch data until internal buffer is empty */
+                ret = app_usbd_cdc_acm_read(&m_app_cdc_acm,
+                                            m_rx_buffer,
+                                            READ_SIZE);
+            } while (ret == NRF_SUCCESS);
+
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+
+static void usbd_user_ev_handler(app_usbd_event_type_t event)
+{
+    switch (event)
+    {
+        case APP_USBD_EVT_DRV_SUSPEND:
+            break;
+        case APP_USBD_EVT_DRV_RESUME:
+            break;
+        case APP_USBD_EVT_STARTED:
+            break;
+        case APP_USBD_EVT_STOPPED:
+            app_usbd_disable();
+            break;
+        case APP_USBD_EVT_POWER_DETECTED:
+            NRF_LOG_INFO("USB power detected");
+
+            if (!nrf_drv_usbd_is_enabled())
+            {
+                app_usbd_enable();
+            }
+            break;
+        case APP_USBD_EVT_POWER_REMOVED:
+            NRF_LOG_INFO("USB power removed");
+            app_usbd_stop();
+            break;
+        case APP_USBD_EVT_POWER_READY:
+            NRF_LOG_INFO("USB ready");
+            app_usbd_start();
+            break;
+        default:
+            break;
+    }
+}
+
+static void usb_init(void)
+{
+    ret_code_t err_code;
+    static const app_usbd_config_t usbd_config = {
+        .ev_state_proc = usbd_user_ev_handler
+    };
+
+    app_usbd_serial_num_generate();
+
+    err_code = app_usbd_init(&usbd_config);
+    APP_ERROR_CHECK(err_code);
+
+    app_usbd_class_inst_t const * class_cdc_acm = app_usbd_cdc_acm_class_inst_get(&m_app_cdc_acm);
+    err_code = app_usbd_class_append(class_cdc_acm);
+    APP_ERROR_CHECK(err_code);
+
+    app_usbd_enable();
+    app_usbd_start();
+}
+
+void led_init(void)
+{
+    nrf_gpio_cfg_output(12);
+    nrf_gpio_cfg_output(8);
+
+    nrf_gpio_pin_set(12);
+    nrf_gpio_pin_set(8);
+}
 
 int main(void)
 {
     // Initialize.
     log_init();
     timer_init();
-    leds_init();
+    //leds_init();
+    led_init();
+
     buttons_init();
+
+    usb_init();
+
     power_management_init();
     ble_stack_init();
     gatt_init();
@@ -569,6 +742,7 @@ int main(void)
 
     for (;;)
     {
+        while (app_usbd_event_queue_process());
         idle_state_handle();
     }
 }

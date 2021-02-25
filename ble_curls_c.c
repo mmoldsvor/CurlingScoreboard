@@ -57,6 +57,19 @@ static void on_hvx(ble_curls_c_t * p_ble_curls_c, ble_evt_t const * p_ble_evt)
             p_ble_curls_c->evt_handler(p_ble_curls_c, &ble_curls_c_evt);
         }
     }
+    else if (p_ble_evt->evt.gattc_evt.params.hvx.handle == p_ble_curls_c->peer_curls_db.identifier_value_handle)
+    {
+        if (p_ble_evt->evt.gattc_evt.params.hvx.len == 1)
+        {
+            ble_curls_c_evt_t ble_curls_c_evt;
+
+            ble_curls_c_evt.evt_type                    = BLE_CURLS_C_EVT_IDENTIFIER_NOTIFICATION;
+            ble_curls_c_evt.conn_handle                 = p_ble_curls_c->conn_handle;
+            ble_curls_c_evt.params.identifier_value     = p_ble_evt->evt.gattc_evt.params.hvx.data[0];
+
+            p_ble_curls_c->evt_handler(p_ble_curls_c, &ble_curls_c_evt);
+        }
+    }
 }
 
 static void on_disconnected(ble_curls_c_t * p_ble_curls_c, ble_evt_t const * p_ble_evt)
@@ -68,6 +81,8 @@ static void on_disconnected(ble_curls_c_t * p_ble_curls_c, ble_evt_t const * p_b
         p_ble_curls_c->peer_curls_db.capacative_value_handle      = BLE_GATT_HANDLE_INVALID;
         p_ble_curls_c->peer_curls_db.movement_value_cccd_handle   = BLE_GATT_HANDLE_INVALID;
         p_ble_curls_c->peer_curls_db.movement_value_handle        = BLE_GATT_HANDLE_INVALID;
+        p_ble_curls_c->peer_curls_db.identifier_value_cccd_handle = BLE_GATT_HANDLE_INVALID;
+        p_ble_curls_c->peer_curls_db.identifier_value_handle      = BLE_GATT_HANDLE_INVALID;
     }
 }
 
@@ -95,7 +110,12 @@ void ble_curls_on_db_disc_evt(ble_curls_c_t * p_ble_curls_c, ble_db_discovery_ev
 
                 case MOVEMENT_CHAR_UUID:
                     evt.params.peer_db.movement_value_handle        = p_char->characteristic.handle_value;
-                    evt.params.peer_db.movement_value_cccd_handle = p_char->cccd_handle;
+                    evt.params.peer_db.movement_value_cccd_handle   = p_char->cccd_handle;
+                    break;
+
+                case IDENTIFIER_CHAR_UUID:
+                    evt.params.peer_db.identifier_value_handle        = p_char->characteristic.handle_value;
+                    evt.params.peer_db.identifier_value_cccd_handle   = p_char->cccd_handle;
                     break;
 
                 default:
@@ -110,7 +130,9 @@ void ble_curls_on_db_disc_evt(ble_curls_c_t * p_ble_curls_c, ble_db_discovery_ev
             if ((p_ble_curls_c->peer_curls_db.capacative_value_handle      == BLE_GATT_HANDLE_INVALID) &&
                 (p_ble_curls_c->peer_curls_db.capacative_value_cccd_handle == BLE_GATT_HANDLE_INVALID) &&
                 (p_ble_curls_c->peer_curls_db.movement_value_handle        == BLE_GATT_HANDLE_INVALID) &&
-                (p_ble_curls_c->peer_curls_db.movement_value_cccd_handle   == BLE_GATT_HANDLE_INVALID))
+                (p_ble_curls_c->peer_curls_db.movement_value_cccd_handle   == BLE_GATT_HANDLE_INVALID) &&
+                (p_ble_curls_c->peer_curls_db.identifier_value_handle      == BLE_GATT_HANDLE_INVALID) &&
+                (p_ble_curls_c->peer_curls_db.identifier_value_cccd_handle == BLE_GATT_HANDLE_INVALID))
             {
                 p_ble_curls_c->peer_curls_db = evt.params.peer_db;
             }
@@ -135,6 +157,8 @@ uint32_t ble_curls_c_init(ble_curls_c_t * p_ble_curls_c, ble_curls_c_init_t * p_
     p_ble_curls_c->peer_curls_db.capacative_value_cccd_handle = BLE_GATT_HANDLE_INVALID;
     p_ble_curls_c->peer_curls_db.movement_value_handle        = BLE_GATT_HANDLE_INVALID;
     p_ble_curls_c->peer_curls_db.movement_value_cccd_handle   = BLE_GATT_HANDLE_INVALID;
+    p_ble_curls_c->peer_curls_db.identifier_value_handle      = BLE_GATT_HANDLE_INVALID;
+    p_ble_curls_c->peer_curls_db.identifier_value_cccd_handle = BLE_GATT_HANDLE_INVALID;
     p_ble_curls_c->conn_handle                                = BLE_CONN_HANDLE_INVALID;
     p_ble_curls_c->evt_handler                                = p_ble_curls_c_init->evt_handler;
     p_ble_curls_c->p_gatt_queue                               = p_ble_curls_c_init->p_gatt_queue;
@@ -227,6 +251,31 @@ static uint32_t movement_cccd_configure(ble_curls_c_t * p_ble_curls_c, bool enab
     return nrf_ble_gq_item_add(p_ble_curls_c->p_gatt_queue, &cccd_req, p_ble_curls_c->conn_handle);
 }
 
+static uint32_t identifier_cccd_configure(ble_curls_c_t * p_ble_curls_c, bool enable)
+{
+    NRF_LOG_DEBUG("Configuring CCCD. CCCD Handle = %d, Connection Handle = %d",
+                  p_ble_curls_c->peer_curls_db.identifier_value_cccd_handle,
+                  p_ble_curls_c->conn_handle);
+
+    nrf_ble_gq_req_t cccd_req;
+    uint16_t         cccd_val = enable ? BLE_GATT_HVX_NOTIFICATION : 0;
+    uint8_t          cccd[WRITE_MESSAGE_LENGTH];
+
+    cccd[0] = LSB_16(cccd_val);
+    cccd[1] = MSB_16(cccd_val);
+
+    cccd_req.type                        = NRF_BLE_GQ_REQ_GATTC_WRITE;
+    cccd_req.error_handler.cb            = gatt_error_handler;
+    cccd_req.error_handler.p_ctx         = p_ble_curls_c;
+    cccd_req.params.gattc_write.handle   = p_ble_curls_c->peer_curls_db.identifier_value_cccd_handle;
+    cccd_req.params.gattc_write.len      = WRITE_MESSAGE_LENGTH;
+    cccd_req.params.gattc_write.offset   = 0;
+    cccd_req.params.gattc_write.p_value  = cccd;
+    cccd_req.params.gattc_write.write_op = BLE_GATT_OP_WRITE_REQ;
+
+    return nrf_ble_gq_item_add(p_ble_curls_c->p_gatt_queue, &cccd_req, p_ble_curls_c->conn_handle);
+}
+
 uint32_t ble_curls_c_capacative_notif_enable(ble_curls_c_t * p_ble_curls_c)
 {
     VERIFY_PARAM_NOT_NULL(p_ble_curls_c);
@@ -249,6 +298,18 @@ uint32_t ble_curls_c_movement_notif_enable(ble_curls_c_t * p_ble_curls_c)
     }
 
     return movement_cccd_configure(p_ble_curls_c, true);
+}
+
+uint32_t ble_curls_c_identifier_notif_enable(ble_curls_c_t * p_ble_curls_c)
+{
+    VERIFY_PARAM_NOT_NULL(p_ble_curls_c);
+
+    if (p_ble_curls_c->conn_handle == BLE_CONN_HANDLE_INVALID)
+    {
+        return NRF_ERROR_INVALID_STATE;
+    }
+
+    return identifier_cccd_configure(p_ble_curls_c, true);
 }
 
 uint32_t ble_curls_c_handles_assign(ble_curls_c_t * p_ble_curls_c, uint16_t conn_handle, const curls_db_t * p_peer_handles)

@@ -25,12 +25,14 @@ NRF_SDH_BLE_OBSERVERS(_name ## _obs,                                            
 #define CURL_SERVICE_UUID               0x0000
 #define CAPACATIVE_CHAR_UUID            0x0001
 #define MOVEMENT_CHAR_UUID              0x0002
+#define IDENTIFIER_CHAR_UUID            0x0003
 
 typedef enum
 {
     BLE_CURLS_C_EVT_DISCOVERY_COMPLETE = 1,
     BLE_CURLS_C_EVT_CAPACATIVE_NOTIFICATION,
     BLE_CURLS_C_EVT_MOVEMENT_NOTIFICATION,
+    BLE_CURLS_C_EVT_IDENTIFIER_NOTIFICATION,
     BLE_CURLS_C_EVT_DISCONNECTED
 } ble_curls_c_evt_type_t;
 
@@ -40,6 +42,8 @@ typedef struct
     uint16_t capacative_value_handle;
     uint16_t movement_value_cccd_handle;
     uint16_t movement_value_handle;
+    uint16_t identifier_value_cccd_handle;
+    uint16_t identifier_value_handle;
 } curls_db_t;
 
 typedef struct
@@ -50,6 +54,7 @@ typedef struct
     {
         bool                capacative_value;
         bool                movement_value;
+        uint8_t             identifier_value;
         curls_db_t          peer_db;
     } params;
 } ble_curls_c_evt_t;
@@ -82,6 +87,8 @@ void ble_curls_c_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context);
 uint32_t ble_curls_c_capacative_notif_enable(ble_curls_c_t * p_ble_curls_c);
 
 uint32_t ble_curls_c_movement_notif_enable(ble_curls_c_t * p_ble_curls_c);
+
+uint32_t ble_curls_c_identifier_notif_enable(ble_curls_c_t * p_ble_curls_c);
 
 void ble_curls_on_db_disc_evt(ble_curls_c_t * p_ble_curls_c, const ble_db_discovery_evt_t * p_evt);
 
