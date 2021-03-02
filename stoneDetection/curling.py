@@ -14,94 +14,45 @@ import logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s -  %(levelname)s-  %(message)s')
 logging.debug('Start of program')
 
-ap = argparse.ArgumentParser()
-ap.add_argument("-i", "--image",help="path to imput image")
-args = vars(ap.parse_args())
 
-if args["image"]  == None:
-    imPath = "curling.png"
-else:
-    imPath = args["image"]
-
-image = cv2.imread(imPath)
-
-# Trackbar setup
-windowDetectionName = 'Object Detection'
-lowHName = 'Low H'
-lowSName = 'Low S'
-lowVName = 'Low V'
-highHName = 'High H'
-highSName = 'High S'
-highVName = 'High V'
-HName = "H"
-HMargName = "H margin"
-gausName = "Gaus"
-
+#vancouver
+red = np.uint8([[[199,61,64]]])
+yellow = np.uint8([[[216,201,36]]])
+outer = np.uint8([[[49,175,52]]])
+inner = np.uint8([[[33,43,107]]])
 maxValue = 255
 maxValueH = 360//2
 lowH = 50
 lowS = 92
 lowV = 0
-highH = maxValueH
 highS = 245
 highV = maxValue
-H = 25
 HMarg = 10
 gaus = 29
-gausMax = 100
 
-cv2.namedWindow(windowDetectionName)
+stoneR = 30
+radMarg = 7
 
-def onTrackbar(x):
-    pass
+innerR = 160
+innerMarg = 7
+outerR = 487
+outerMarg = 7
 
-def makeTrackbar():
-    #cv2.createTrackbar(HName,windowDetectionName,H,maxValueH,onTrackbar)
-    cv2.createTrackbar(HMargName,windowDetectionName,HMarg,maxValueH//2,onTrackbar)
-    #cv2.createTrackbar(lowHName,windowDetectionName,lowH,maxValueH,onTrackbar)
-    #cv2.createTrackbar(highHName,windowDetectionName,highH,maxValueH,onTrackbar)
-    cv2.createTrackbar(lowSName,windowDetectionName,lowS,maxValue,onTrackbar)
-    cv2.createTrackbar(highSName,windowDetectionName,highS,maxValue,onTrackbar)
-    cv2.createTrackbar(lowVName,windowDetectionName,lowV,maxValue,onTrackbar)
-    cv2.createTrackbar(highVName,windowDetectionName,highV,maxValue,onTrackbar)
-    cv2.createTrackbar(gausName,windowDetectionName,gaus,gausMax,onTrackbar)
+minDist = 10
 
-def getTrackbar():
-    H = cv2.getTrackbarPos(HName,windowDetectionName)
-    HMarg = cv2.getTrackbarPos(HMargName,windowDetectionName)
-
-    hMin = H-HMarg
-    hMax = H+HMarg
-
-    cv2.setTrackbarPos(lowHName,windowDetectionName,hMin)
-    cv2.setTrackbarPos(highHName,windowDetectionName,hMax)
-
-    lowH = cv2.getTrackbarPos(lowHName,windowDetectionName)
-    highH = cv2.getTrackbarPos(highHName,windowDetectionName)
-    lowS = cv2.getTrackbarPos(lowSName,windowDetectionName)
-    highS = cv2.getTrackbarPos(highSName,windowDetectionName)
-    lowV = cv2.getTrackbarPos(lowVName,windowDetectionName)
-    highV = cv2.getTrackbarPos(highVName,windowDetectionName)
-    gaus = cv2.getTrackbarPos(gausName,windowDetectionName)
-
-    if gaus % 2 == 0:
-        gaus+=1
-
-    return hMin,hMax,lowS,highS,lowV,highV,gaus
+#Convert to HSV
+redHsv = cv2.cvtColor(red,cv2.COLOR_RGB2HSV)
+yellowHsv = cv2.cvtColor(yellow,cv2.COLOR_RGB2HSV)
+outerHsv = cv2.cvtColor(outer,cv2.COLOR_RGB2HSV)
+innerHsv = cv2.cvtColor(inner,cv2.COLOR_RGB2HSV)
 
 
 def colorTresh(img,H):
     """Create mask with given color, H"""
-    HMarg = cv2.getTrackbarPos(HMargName,windowDetectionName)
-    hMin,hMax,lowS,highS,lowV,highV,gaus = getTrackbar()
 
     hMin = H-HMarg
     hMax = H+HMarg
-    #hMin = cv2.getTrackbarPos(lowHName,windowDetectionName)
-    #hMax = cv2.getTrackbarPos(highHName,windowDetectionName)
     imHsv = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
-
-    #gausIm = cv2.GaussianBlur(imHsv,(gaus,gaus),0)
 
     if hMin < 0:
         clrTreshLower =cv2.inRange(imHsv,(hMin%maxValueH,lowS,lowV),(maxValueH,highS,highV))
@@ -132,21 +83,23 @@ def detectCircle(img,gausSize,minR,maxR):
     # Apply Hough transform on the blurred image. 
     circles = cv2.HoughCircles(grayGaus,cv2.HOUGH_GRADIENT, 1, 20, param1 = 50,
                                param2 = 30, minRadius = minR, maxRadius = maxR)
-    return circles
+
+    if circles is None:
+        return None
+    else:
+        return circles[0]
 
 def drawCircles(img,color,circles):
     """Draw circle with given color image"""
     output = img.copy()
     # Draw circles that are detected. 
-    #logging.debug(str(color)+str(type(color[0])))
     color = tuple(color)
-    #logging.debug(str(color)+str(type(color[0])))
     if circles is not None:
 
         # Convert the circle parameters a, b and r to integers. 
         circles = np.uint16(np.around(circles))
 
-        for pt in circles[0, :]:
+        for pt in circles:
             a, b, r = pt[0], pt[1], pt[2]
 
             # Draw the circumference of the circle. 
@@ -162,88 +115,102 @@ def showIm(name,img, scale):
     """resize and show image"""
     cv2.imshow(name,cv2.resize(img,(0,0),fx=scale,fy=scale))
 
-def changeRadius(circles, reduceBy):
-    for c in circles[0]:
-        c[2] -= reduceBy
+def changeRadius(circles, scale):
+    for c in circles:
+        c[2] *= scale
     return circles
 
-makeTrackbar()
+def distToCenter(stone, house):
+    """Calculating distance from middle of house to stones"""
+    distx = house[0] - stone[0]
+    disty = house[1] - stone[1]
+    dist = np.sqrt(distx**2 + disty**2)-stoneR
+    return dist
 
-#curling.png
-#red = np.uint8([[[152,0,0]]])
-#yellow = np.uint8([[[199,180,0]]])
-#outer = np.uint8([[[2,114,127]]])
-#inner = np.uint8([[[195,12,32]]])
-#stoneR = 25
-#radMarg = 30
-
-#mobil.jpg
-#red = np.uint8([[[73,19,23]]])
-#yellow = np.uint8([[[156,148,36]]])
-#outer = np.uint8([[[20,61,37]]])
-#inner = np.uint8([[[40,43,76]]])
-#stoneR = 45
-#radMarg = 30
-
-#correction.jpg
-#red = np.uint8([[[73,19,23]]])
-#yellow = np.uint8([[[156,148,36]]])
-#outer = np.uint8([[[20,61,37]]])
-#inner = np.uint8([[[40,43,76]]])
-#stoneR = 45
-#radMarg = 30
-
-#vancouver
-red = np.uint8([[[199,61,64]]])
-yellow = np.uint8([[[216,201,36]]])
-outer = np.uint8([[[49,175,52]]])
-inner = np.uint8([[[33,43,107]]])
-stoneR = 30
-radMarg = 7
-
-innerR = 160
-innerMarg = 7
-outerR = 487
-outerMarg = 7
-
-#Convert to HSV
-redHsv = cv2.cvtColor(red,cv2.COLOR_RGB2HSV)
-yellowHsv = cv2.cvtColor(yellow,cv2.COLOR_RGB2HSV)
-outerHsv = cv2.cvtColor(outer,cv2.COLOR_RGB2HSV)
-innerHsv = cv2.cvtColor(inner,cv2.COLOR_RGB2HSV)
+def midStones(stones,house,color,middleStones):
+    """return list with stones inside house"""
+    houseR = house[2]
+    if stones is not None:
+        for stone in stones:
+            dist = distToCenter(stone, house)
+            distToHouse = abs(dist - houseR)
+            if distToHouse < minDist:
+                print("LITEN AVSTAND TIL BOET:",distToHouse)
+            if dist < houseR:
+                middleStones.append([dist,color])
 
 
-while(True):
+
+def getPoints(rCirc,yCirc,house):
+    """return points and team"""
+    mid = []
+    midStones(rCirc,house,"red",mid)
+    midStones(yCirc,house,"yellow",mid)
+    midSort = sorted(mid)
+
+    if len(mid) == 0:
+        return "ingen", 0
+
+#    for i in range(1,len(midSort)):
+#        dist = midSort[i]- midSort[i-1]
+
+
+    winner = midSort[0][1]
+    score = 0
+    prevDist = 0
+    for stone in midSort:
+        if stone[1] != winner:
+            dist = stone[0]-prevDist
+            print("Forskjell mellom steinene:",dist)
+            if dist < minDist:
+                print("LITEN FORSKJELL:", dist)
+            break
+        else:
+            score += 1
+            prevDist = stone[0]
+
+    return winner, score
+
+
+def main(image):
     redMask = colorTresh(image,int(redHsv[0,0,0]))
     yellowMask = colorTresh(image,int(yellowHsv[0,0,0]))
-    #showIm("redMask",redMask,0.5)
-    #showIm("yellowMask",yellowMask,0.5)
-
     outerMask = colorTresh(image,int(outerHsv[0,0,0]))
     innerMask = colorTresh(image,int(innerHsv[0,0,0]))
-    #cv2.imshow("CV-edge",outerMask)
-    showIm("CV-edge",outerMask, 0.5)
-    
-    edges = imutils.auto_canny(redMask)
-    edgesy = imutils.auto_canny(yellowMask)
-    #showIm("edger",edges,0.25)
-    #showIm("edgey",edgesy,0.25)
 
     redCircles = detectCircle(redMask,5,stoneR-radMarg,stoneR+radMarg)
     yellowCircles = detectCircle(yellowMask,5,stoneR-radMarg,stoneR+radMarg)
-    output = drawCircles(image,(0,255,255),redCircles)
-    output = drawCircles(output,(168,0,45),yellowCircles)
-
     outerCircle = detectCircle(outerMask,5,outerR-outerMarg,outerR+outerMarg)
-
-    output = drawCircles(output,(255,0,0),outerCircle)
-
     innerCircle = detectCircle(innerMask,5,innerR-innerMarg,innerR+innerMarg)
-    drawinner = drawCircles(image,(0,255,0),innerCircle)
+
+    if redCircles is not None:
+        changeRadius(redCircles,1.332)
+    if yellowCircles is not None:
+        changeRadius(yellowCircles,1.332)
+
+    winner, score = getPoints(redCircles,yellowCircles,outerCircle[0])
+    print(winner,score)
+
+
+    output = drawCircles(image,(255, 255, 0),redCircles)
+    output = drawCircles(output,(13, 255, 37),yellowCircles)
+    output = drawCircles(output,(166,0,255),outerCircle)
     output = drawCircles(output,(0,255,100),innerCircle)
 
     showIm("out",output,0.5)
+    cv2.waitKey(0)
 
-    key = cv2.waitKey(30)
-    if key == ord('q') or key == 27:
-        break
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-i", "--image",help="path to imput image")
+    args = vars(ap.parse_args())
+
+    if args["image"]  == None:
+        imPath = "curling.png"
+    else:
+        imPath = args["image"]
+
+    image = cv2.imread(imPath)
+
+    main(image)
