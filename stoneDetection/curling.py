@@ -81,7 +81,11 @@ def detectCircle(img,gausSize,minR,maxR):
     # Apply Hough transform on the blurred image. 
     circles = cv2.HoughCircles(grayGaus,cv2.HOUGH_GRADIENT, 1, 20, param1 = 50,
                                param2 = 30, minRadius = minR, maxRadius = maxR)
-    return circles
+
+    if circles is None:
+        return None
+    else:
+        return circles[0]
 
 def drawCircles(img,color,circles):
     """Draw circle with given color image"""
@@ -93,7 +97,7 @@ def drawCircles(img,color,circles):
         # Convert the circle parameters a, b and r to integers. 
         circles = np.uint16(np.around(circles))
 
-        for pt in circles[0, :]:
+        for pt in circles:
             a, b, r = pt[0], pt[1], pt[2]
 
             # Draw the circumference of the circle. 
@@ -110,7 +114,7 @@ def showIm(name,img, scale):
     cv2.imshow(name,cv2.resize(img,(0,0),fx=scale,fy=scale))
 
 def changeRadius(circles, scale):
-    for c in circles[0]:
+    for c in circles:
         c[2] *= scale
     return circles
 
@@ -124,14 +128,12 @@ def distToCenter(stone, house):
 def midStones(stones,house,color,middleStones):
     """return list with stones inside house"""
     houseR = house[2]
+    if stones is not None:
+        for stone in stones:
+            dist = distToCenter(stone, house)
+            if dist < houseR:
+                middleStones.append([dist,color])
 
-    for stone in stones:
-        dist = distToCenter(stone, house)
-        if dist < houseR:
-            #middleStones.append(np.ndarray.tolist(stone).append(")
-            middleStones.append([dist,color])
-
-    return middleStones
 
 
 def getPoints(rCirc,yCirc,house):
@@ -140,6 +142,9 @@ def getPoints(rCirc,yCirc,house):
     midStones(rCirc,house,"red",mid)
     midStones(yCirc,house,"yellow",mid)
     midSort = sorted(mid)
+
+    if len(mid) == 0:
+        return "ingen",0
 
     winner = midSort[0][1]
     score = 0
@@ -163,18 +168,20 @@ def main(image):
     outerCircle = detectCircle(outerMask,5,outerR-outerMarg,outerR+outerMarg)
     innerCircle = detectCircle(innerMask,5,innerR-innerMarg,innerR+innerMarg)
 
-    changeRadius(redCircles,1.332)
-    changeRadius(yellowCircles,1.332)
+    if redCircles is not None:
+        changeRadius(redCircles,1.332)
+    if yellowCircles is not None:
+        changeRadius(yellowCircles,1.332)
+
+    winner, score = getPoints(redCircles,yellowCircles,outerCircle[0])
+    print(winner,score)
+
 
     output = drawCircles(image,(255, 255, 0),redCircles)
     output = drawCircles(output,(13, 255, 37),yellowCircles)
     output = drawCircles(output,(166,0,255),outerCircle)
     output = drawCircles(output,(0,255,100),innerCircle)
 
-
-    #print(yellowCircles)
-    winner, score = getPoints(redCircles[0],yellowCircles[0],outerCircle[0,0])
-    print(winner,score)
     showIm("out",output,0.5)
     cv2.waitKey(0)
 
