@@ -38,6 +38,8 @@ innerMarg = 7
 outerR = 487
 outerMarg = 7
 
+minDist = 10
+
 #Convert to HSV
 redHsv = cv2.cvtColor(red,cv2.COLOR_RGB2HSV)
 yellowHsv = cv2.cvtColor(yellow,cv2.COLOR_RGB2HSV)
@@ -131,6 +133,9 @@ def midStones(stones,house,color,middleStones):
     if stones is not None:
         for stone in stones:
             dist = distToCenter(stone, house)
+            distToHouse = abs(dist - houseR)
+            if distToHouse < minDist:
+                print("LITEN AVSTAND TIL BOET:",distToHouse)
             if dist < houseR:
                 middleStones.append([dist,color])
 
@@ -144,15 +149,25 @@ def getPoints(rCirc,yCirc,house):
     midSort = sorted(mid)
 
     if len(mid) == 0:
-        return "ingen",0
+        return "ingen", 0
+
+#    for i in range(1,len(midSort)):
+#        dist = midSort[i]- midSort[i-1]
+
 
     winner = midSort[0][1]
     score = 0
+    prevDist = 0
     for stone in midSort:
         if stone[1] != winner:
+            dist = stone[0]-prevDist
+            print("Forskjell mellom steinene:",dist)
+            if dist < minDist:
+                print("LITEN FORSKJELL:", dist)
             break
         else:
             score += 1
+            prevDist = stone[0]
 
     return winner, score
 
