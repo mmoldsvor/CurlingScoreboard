@@ -45,20 +45,26 @@ window.onload = function() {
 }
 `;
     var pos = JSON.parse(text);
-    centerX = 400
-    centerY = 250
-    radius = pos.center.rad/2
+    canvas.width = house.clientWidth;
+    scale = canvas.width/1300;
+    radius = pos.center.rad*scale
+    canvas.height = radius*4.5;
+
+    centerY = canvas.height-radius;
+    centerX = canvas.width/2;
+    console.log(scale)
+    //ctx.scale(scale, scale);    
     drawHouse(centerX,centerY,radius,ctx);
 
 
     for (var key in pos.red) {
-        x = centerX + parseInt(pos.red[key].x)/2
-        y = centerY + parseInt(pos.red[key].y)/2
+        x = centerX + parseInt(pos.red[key].x)*scale
+        y = centerY + parseInt(pos.red[key].y)*scale
         drawStone(x,y, "#FF0000", ctx)
     }
     for (var key in pos.yellow) {
-        x = centerX + parseInt(pos.yellow[key].x)/2
-        y = centerY + parseInt(pos.yellow[key].y)/2
+        x = centerX + parseInt(pos.yellow[key].x)*scale
+        y = centerY + parseInt(pos.yellow[key].y)*scale
         drawStone(x,y, "#FFFF00", ctx)
     }
 
@@ -67,7 +73,7 @@ window.onload = function() {
 }
 
 function drawStone(X,Y,clr,ctx) {
-    const radius = 35/2;
+    const radius = 35*scale;
 
     ctx.fillStyle = "#FFFFFF";
     ctx.beginPath();
