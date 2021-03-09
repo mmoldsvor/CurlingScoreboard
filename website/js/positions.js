@@ -91,19 +91,19 @@ function drawHouse(X,Y,radius,ctx){
 
     ctx.fillStyle = "#FFFFFF";
     ctx.beginPath();
-    ctx.arc(X,Y,radius*2/3, 0, 2 * Math.PI, false);
+    ctx.arc(X,Y,radius*0.7, 0, 2 * Math.PI, false);
     ctx.stroke();
     ctx.fill();
 
     ctx.fillStyle = "#0000FF";
     ctx.beginPath();
-    ctx.arc(X,Y,radius/3, 0, 2 * Math.PI, false);
+    ctx.arc(X,Y,radius*0.35, 0, 2 * Math.PI, false);
     ctx.stroke();
     ctx.fill();
 
     ctx.fillStyle = "#FFFFFF";
     ctx.beginPath();
-    ctx.arc(X,Y,radius/6, 0, 2 * Math.PI, false);
+    ctx.arc(X,Y,radius*0.133, 0, 2 * Math.PI, false);
     ctx.stroke();
     ctx.fill();
 }
