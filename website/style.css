@@ -1,0 +1,19 @@
+#house {
+    width : 30%;
+
+}
+table, th, td {
+    border: 1px solid black;
+  }
+
+.poeng {
+    position: fixed;
+    left: 500px;
+    top: 95px;
+}
+
+.tid {
+    position: fixed;
+    left: 500px;
+    top: 200px;
+}
