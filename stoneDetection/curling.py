@@ -67,6 +67,7 @@ def colorTresh(img,H):
         clrTresh = cv2.inRange(imHsv,(hMin,lowS,lowV),(hMax,highS,highV))
 
 
+    showIm("red",clrTresh,0.5)
     gausMask = cv2.GaussianBlur(clrTresh,(gaus,gaus),0)
     output = cv2.bitwise_and(gausMask,gausMask,mask=clrTresh)
 
@@ -104,7 +105,7 @@ def drawCircles(img,color,circles):
             a, b, r = pt[0], pt[1], pt[2]
 
             # Draw the circumference of the circle. 
-            cv2.circle(output, (a, b), r, color, 3)
+            cv2.circle(output, (a, b), r, color, 1)
 
             # Draw a small circle (of radius 1) to show the center. 
             cv2.circle(output, (a, b), 1, color, 3)
@@ -217,6 +218,7 @@ def getPositions(image,points):
             positions["yellow"].append(stone)
 
     dump = json.dumps(positions, indent=4, sort_keys=True)
+    print(positions)
 
     if points:
         winner, score = calcPoints(redCircles,yellowCircles,outerCircle[0])
@@ -253,7 +255,7 @@ def main(image):
     output = drawCircles(output,(166,0,255),outerCircle)
     output = drawCircles(output,(0,255,100),innerCircle)
 
-    showIm("out",output,0.5)
+    showIm("out",output,1)
     cv2.waitKey(0)
 
 
