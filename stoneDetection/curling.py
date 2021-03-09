@@ -10,6 +10,7 @@ import imutils
 import argparse
 import numpy as np
 import logging
+import json
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s -  %(levelname)s-  %(message)s')
 logging.debug('Start of program')
@@ -66,6 +67,7 @@ def colorTresh(img,H):
         clrTresh = cv2.inRange(imHsv,(hMin,lowS,lowV),(hMax,highS,highV))
 
 
+    showIm("red",clrTresh,0.5)
     gausMask = cv2.GaussianBlur(clrTresh,(gaus,gaus),0)
     output = cv2.bitwise_and(gausMask,gausMask,mask=clrTresh)
 
@@ -103,7 +105,7 @@ def drawCircles(img,color,circles):
             a, b, r = pt[0], pt[1], pt[2]
 
             # Draw the circumference of the circle. 
-            cv2.circle(output, (a, b), r, color, 3)
+            cv2.circle(output, (a, b), r, color, 1)
 
             # Draw a small circle (of radius 1) to show the center. 
             cv2.circle(output, (a, b), 1, color, 3)
@@ -141,7 +143,7 @@ def midStones(stones,house,color,middleStones):
 
 
 
-def getPoints(rCirc,yCirc,house):
+def calcPoints(rCirc,yCirc,house):
     """return points and team"""
     mid = []
     midStones(rCirc,house,"red",mid)
@@ -171,6 +173,61 @@ def getPoints(rCirc,yCirc,house):
 
     return winner, score
 
+def getPositions(image,points):
+    """Return positions of stones in image. Returns points if True"""
+
+    redMask = colorTresh(image,int(redHsv[0,0,0]))
+    yellowMask = colorTresh(image,int(yellowHsv[0,0,0]))
+    outerMask = colorTresh(image,int(outerHsv[0,0,0]))
+    innerMask = colorTresh(image,int(innerHsv[0,0,0]))
+
+    redCircles = detectCircle(redMask,5,stoneR-radMarg,stoneR+radMarg)
+    yellowCircles = detectCircle(yellowMask,5,stoneR-radMarg,stoneR+radMarg)
+    outerCircle = detectCircle(outerMask,5,outerR-outerMarg,outerR+outerMarg)
+    innerCircle = detectCircle(innerMask,5,innerR-innerMarg,innerR+innerMarg)
+
+    if redCircles is not None:
+        changeRadius(redCircles,1.332)
+    if yellowCircles is not None:
+        changeRadius(yellowCircles,1.332)
+
+    positions = {}
+    centerX = outerCircle[0,0]
+    centerY = outerCircle[0,1]
+    positions["center"] = { "x" : str(outerCircle[0,0]),
+                           "y" : str(outerCircle[0,1]),
+                           "rad" : str(outerCircle[0,2])}
+    positions["red"] = []
+    if redCircles is not None:
+        for c in redCircles:
+            x = c[0]-centerX
+            y = c[1]-centerY
+            rad = c[2]
+
+            stone = {"x" : str(x),"y": str(y), "rad" : str(rad), "color" : "red"}
+            positions["red"].append(stone)
+
+    positions["yellow"] = []
+    if yellowCircles is not None:
+        for c in yellowCircles:
+            x = c[0]-centerX
+            y = c[1]-centerY
+            rad = c[2]
+
+            stone = {"x" : str(x),"y": str(y), "rad" : str(rad), "color" : "yellow"}
+            positions["yellow"].append(stone)
+
+    dump = json.dumps(positions, indent=4, sort_keys=True)
+    print(positions)
+
+    if points:
+        winner, score = calcPoints(redCircles,yellowCircles,outerCircle[0])
+        points = {"winner" : winner, "score" : score}
+    else:
+        points = None
+
+    return dump, points
+
 
 def main(image):
     redMask = colorTresh(image,int(redHsv[0,0,0]))
@@ -188,7 +245,8 @@ def main(image):
     if yellowCircles is not None:
         changeRadius(yellowCircles,1.332)
 
-    winner, score = getPoints(redCircles,yellowCircles,outerCircle[0])
+
+    winner, score = calcPoints(redCircles,yellowCircles,outerCircle[0])
     print(winner,score)
 
 
@@ -197,8 +255,9 @@ def main(image):
     output = drawCircles(output,(166,0,255),outerCircle)
     output = drawCircles(output,(0,255,100),innerCircle)
 
-    showIm("out",output,0.5)
+    showIm("out",output,1)
     cv2.waitKey(0)
+
 
 
 if __name__ == "__main__":
@@ -212,5 +271,9 @@ if __name__ == "__main__":
         imPath = args["image"]
 
     image = cv2.imread(imPath)
+
+    pos, points = getPositions(image,False)
+    print(pos)
+    print(points)
 
     main(image)
