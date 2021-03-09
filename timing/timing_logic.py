@@ -15,6 +15,12 @@ class StateMachine:
         self.current_stone = 0
         self.current_state = current_state
         self.motion_or_not = {} 
+
+        self.time_tracking = {
+            0: [],
+            1: []
+        }
+        self.current_team = 1
         
     def run(self, item):
         if self.current_state == State.NO_TOUCH_MOTION:
@@ -37,6 +43,25 @@ class StateMachine:
         if identifier in self.motion_or_not and not self.check_id(identifier):
             self.motion_or_not[identifier] = motion
 
+    def print_timings(self):
+        for team, scores in self.time_tracking.items():
+            test = []
+            for pair in scores:
+                start, stop = pair
+                test.append(stop-start)
+            print(f'{team}: {sum(test)}')
+
+    def start_time(self):
+        self.time_tracking[self.current_team].append([time()])
+
+    def stop_time(self):
+        if len(self.time_tracking[self.current_team]):
+            self.time_tracking[self.current_team][-1].append(time())
+
+            self.current_team = not self.current_team
+
+        self.print_timings()
+
     def check_id(self, identifier):
         return self.current_stone == identifier
         
@@ -51,6 +76,7 @@ class StateMachine:
             self.current_stone = identifier
             self.current_state = State.TOUCH
             print('TOUCH')
+            self.touch_state(item)
 
     def touch_state(self, item):
         motion = (item & 2) >> 1
@@ -68,6 +94,8 @@ class StateMachine:
             self.current_state = State.MOTION
             print('MOTION')
 
+            self.stop_time()
+
     def motion_state(self, item):
         motion = (item & 2) >> 1
         identifier = (item & ~3) >> 2
@@ -84,17 +112,12 @@ class StateMachine:
             self.current_state = State.NO_TOUCH_MOTION
             print('NO TOUCH MOTION\n')
 
+            self.start_time()
+
 if __name__ == '__main__':
     communication_thread = CommunicationThread()
     state_machine = StateMachine()
     while True:
         if not communication_thread.queue.empty():
             item = communication_thread.queue.get_nowait()
-
             state_machine.run(item)
-
-            
-            touch = item & 1
-            motion = (item & 2) >> 1
-            identifier = (item & ~3) >> 2
-            #print(f'Touch: {touch}, Motion: {motion}, Identifier: {identifier}')
