@@ -11,9 +11,15 @@ import argparse
 import numpy as np
 import logging
 import json
+import requests
+
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s -  %(levelname)s-  %(message)s')
 logging.debug('Start of program')
+
+SITE_URL = "http://127.0.0.1:8000/curlingapp/sendPos/" # Where to send data.
+
+
 
 
 #vancouver
@@ -46,6 +52,9 @@ redHsv = cv2.cvtColor(red,cv2.COLOR_RGB2HSV)
 yellowHsv = cv2.cvtColor(yellow,cv2.COLOR_RGB2HSV)
 outerHsv = cv2.cvtColor(outer,cv2.COLOR_RGB2HSV)
 innerHsv = cv2.cvtColor(inner,cv2.COLOR_RGB2HSV)
+
+
+
 
 
 def colorTresh(img,H):
@@ -217,8 +226,7 @@ def getPositions(image,points):
             stone = {"x" : str(x),"y": str(y), "rad" : str(rad), "color" : "yellow"}
             positions["yellow"].append(stone)
 
-    dump = json.dumps(positions, indent=4, sort_keys=True)
-    print(positions)
+    dump = json.dumps(positions)
 
     if points:
         winner, score = calcPoints(redCircles,yellowCircles,outerCircle[0])
@@ -259,6 +267,26 @@ def main(image):
     cv2.waitKey(0)
 
 
+def getCookies():
+        # Performs GET-request and returns cookies in response.
+        return requests.get(SITE_URL).cookies
+
+def sendData(pos,points):
+    cookies = getCookies()
+    csrf_token = cookies["csrftoken"]
+    headers = {'content-type': 'application/json', "X-CSRFToken": csrf_token}       # Add content-type and csrf-token to headers.
+
+    data = { "pos": pos, "points": points }    # Dictionary for holding data to be sent.
+    print(data)
+
+
+    response = requests.post(SITE_URL, data=data, cookies=cookies, headers=headers)  # Send data to server.
+
+    if(response.status_code == 200):
+            print("Hurra! Dataen er sendt.")
+    else:
+            print("Noe gikk galt.")
+            print("HTTP-Status: {}\n".format(response.status_code))
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
@@ -272,8 +300,8 @@ if __name__ == "__main__":
 
     image = cv2.imread(imPath)
 
-    pos, points = getPositions(image,False)
-    print(pos)
-    print(points)
+    pos, points = getPositions(image,True)
+    sendData(pos,points)
+
 
     main(image)
