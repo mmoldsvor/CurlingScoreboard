@@ -1,33 +1,36 @@
 from enum import Enum
 from time import time
 
-from ble_usb_handler import CommunicationThread
+from event_handler import EventHandler
+
+from typing import List
 
 class State(Enum):
-    NO_TOUCH_MOTION = 1
+    NO_TOUCH_NO_MOTION = 1
     TOUCH = 2
-    TOUCH_MOTION = 3
-    MOTION = 4
-    NO_MOTION = 5
+    MOTION_NO_TOUCH = 3
+    TOUCH_MOTION = 4
+    MOTION = 5
+    NO_MOTION = 6
+
 
 class StateMachine:
-    def __init__(self, current_state = State.NO_TOUCH_MOTION):
+    def __init__(self, current_state = State.NO_TOUCH_NO_MOTION, event_handlers: List[EventHandler] = None):
         self.current_stone = 0
         self.current_state = current_state
+        self.event_handlers = event_handlers if not None else []
         self.motion_or_not = {} 
 
-        self.time_tracking = {
-            0: [],
-            1: []
-        }
-        self.current_team = 1
         
     def run(self, item):
-        if self.current_state == State.NO_TOUCH_MOTION:
-            self.no_touch_motion_state(item)
+        if self.current_state == State.NO_TOUCH_NO_MOTION:
+            self.no_touch_no_motion_state(item)
 
         elif self.current_state == State.TOUCH:
             self.touch_state(item)
+
+        elif self.current_state == State.MOTION_NO_TOUCH:
+            self.motion_no_touch_state(item)
 
         elif self.current_state == State.TOUCH_MOTION:
             self.touch_motion_state(item)
@@ -43,30 +46,28 @@ class StateMachine:
         if identifier in self.motion_or_not and not self.check_id(identifier):
             self.motion_or_not[identifier] = motion
 
-    def print_timings(self):
-        for team, scores in self.time_tracking.items():
-            test = []
-            for pair in scores:
-                start, stop = pair
-                test.append(stop-start)
-            print(f'{team}: {sum(test)}')
+    def propagate_events(self):
+        for event_handler in self.event_handlers:
+            if self.current_state == State.NO_TOUCH_NO_MOTION:
+                event_handler.no_touch_no_motion_event()
+            if self.current_state == State.TOUCH:
+                event_handler.touch_event()
+            if self.current_state == State.MOTION_NO_TOUCH:
+                event_handler.motion_no_touch_event()
+            if self.current_state == State.TOUCH_MOTION:
+                event_handler.touch_motion_event()
+            if self.current_state == State.MOTION:
+                event_handler.motion_event()
+            if self.current_state == State.NO_MOTION:
+                event_handler.no_motion_event()
 
-    def start_time(self):
-        self.time_tracking[self.current_team].append([time()])
-
-    def stop_time(self):
-        if len(self.time_tracking[self.current_team]):
-            self.time_tracking[self.current_team][-1].append(time())
-
-            self.current_team = not self.current_team
-
-        self.print_timings()
 
     def check_id(self, identifier):
         return self.current_stone == identifier
         
-    def no_touch_motion_state(self, item):
+    def no_touch_no_motion_state(self, item):
         touch = item & 1
+        motion = (item & 2) >> 1
         identifier = (item & ~3) >> 2
 
         if touch or identifier in self.motion_or_not:
@@ -75,16 +76,47 @@ class StateMachine:
         if touch:
             self.current_stone = identifier
             self.current_state = State.TOUCH
-            print('TOUCH')
+            self.propagate_events()
+
             self.touch_state(item)
 
+        if motion:
+            self.current_stone = identifier
+            self.current_state = State.MOTION_NO_TOUCH
+            self.propagate_events()
+
+            self.motion_no_touch_state(item)
+
     def touch_state(self, item):
+        touch = item & 1
         motion = (item & 2) >> 1
         identifier = (item & ~3) >> 2
 
-        if self.check_id(identifier) and motion:
+        if self.check_id(identifier) and not touch:
+            self.current_state = State.NO_TOUCH_NO_MOTION
+            self.propagate_events()
+
+        elif self.check_id(identifier) and motion:
             self.current_state = State.TOUCH_MOTION
-            print('TOUCH MOTION')
+            self.propagate_events()
+
+            self.touch_motion_state(item)
+
+    def motion_no_touch_state(self, item):
+        touch = item & 1
+        motion = (item & 2) >> 1
+        identifier = (item & ~3) >> 2
+        
+        if self.check_id(identifier) and not motion:
+            self.current_state = State.NO_TOUCH_NO_MOTION
+            self.propagate_events()
+
+        elif self.check_id(identifier) and touch:
+            self.current_state = State.TOUCH_MOTION
+            self.propagate_events()
+
+            self.touch_motion_state(item)
+        
 
     def touch_motion_state(self, item):
         touch = item & 1
@@ -92,9 +124,9 @@ class StateMachine:
 
         if self.check_id(identifier) and not touch:
             self.current_state = State.MOTION
-            print('MOTION')
-
-            self.stop_time()
+            
+            self.propagate_events()
+            self.motion_state(item)
 
     def motion_state(self, item):
         motion = (item & 2) >> 1
@@ -102,22 +134,14 @@ class StateMachine:
 
         if self.check_id(identifier) and not motion:
             self.current_state = State.NO_MOTION
-            print('NO MOTION')
+            self.propagate_events()
+            
             self.no_motion_state(item)
 
     def no_motion_state(self, item):
         
 
         if not sum(self.motion_or_not.values()):
-            self.current_state = State.NO_TOUCH_MOTION
-            print('NO TOUCH MOTION\n')
-
-            self.start_time()
-
-if __name__ == '__main__':
-    communication_thread = CommunicationThread()
-    state_machine = StateMachine()
-    while True:
-        if not communication_thread.queue.empty():
-            item = communication_thread.queue.get_nowait()
-            state_machine.run(item)
+            self.current_state = State.NO_TOUCH_NO_MOTION
+            
+            self.propagate_events()
