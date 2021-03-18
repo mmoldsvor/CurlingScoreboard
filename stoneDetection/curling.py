@@ -17,7 +17,8 @@ import requests
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s -  %(levelname)s-  %(message)s')
 logging.debug('Start of program')
 
-SITE_URL = "http://127.0.0.1:8000/curlingapp/sendPos/" # Where to send data.
+camId = 1
+SITE_URL = "http://127.0.0.1:8000/curlingapp/sendPos/"+str(camId)+"/" # Where to send data.
 
 
 
