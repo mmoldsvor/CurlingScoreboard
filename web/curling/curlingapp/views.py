@@ -11,28 +11,22 @@ def index(request):
     print("index")
     context = {}
     pos = Round.objects.latest('timestamp').get_pos()
+    print("pos",pos)
     context['positions'] = pos
     return render(request, "curlingapp/index.html",context)
 
 def send_pos(request):
     if request.method == "POST":
-        data = dict(QueryDict(request.body))
+        data = json.loads(request.body)
         print(data)
+        print(type(data))
         pos = data['pos']
 
 
-        try:
-            points = data['points'][0]
-        except:
-            print("nono")
-            lastThrow = False
-        else:
-            print("yeye")
-            lastThrow = True
 
+        points = data['points']
 
-        if lastThrow:
-            points = json.loads(points)
+        if points != None:
             winner = points["winner"]
             score = points["score"]
             s = Scoreboard(end=1,match="TestMatch",winner=winner,points=score)

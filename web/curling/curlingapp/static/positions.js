@@ -2,8 +2,10 @@ window.onload = function() {
     var canvas = document.getElementById("myCanvas");
     var ctx = canvas.getContext("2d");
 
-    
+    console.log(typeof data) 
+    console.log(data) 
     var pos = JSON.parse(data);
+    console.log(pos)
     canvas.width = house.clientWidth;
     scale = canvas.width/1300;
     radius = pos.center.rad*scale

@@ -226,15 +226,15 @@ def getPositions(image,points):
             stone = {"x" : str(x),"y": str(y), "rad" : str(rad), "color" : "yellow"}
             positions["yellow"].append(stone)
 
-    dump = json.dumps(positions)
+    #dump = json.dumps(positions)
 
     if points:
         winner, score = calcPoints(redCircles,yellowCircles,outerCircle[0])
-        points = json.dumps({"winner" : winner, "score" : score})
+        points = {"winner" : winner, "score" : score}
     else:
         points = None
 
-    return dump, points
+    return positions, points
 
 
 def main(image):
@@ -276,9 +276,8 @@ def sendData(pos,points):
     csrf_token = cookies["csrftoken"]
     headers = {'content-type': 'application/json', "X-CSRFToken": csrf_token}       # Add content-type and csrf-token to headers.
 
-    data = { 'pos': pos, 'points': points}    # Dictionary for holding data to be sent.
-    #print(data)
-
+    data = json.dumps({ 'pos': pos, 'points': points})    # Dictionary for holding data to be sent.
+    print(data)
 
     response = requests.post(SITE_URL, data=data, cookies=cookies, headers=headers)  # Send data to server.
 

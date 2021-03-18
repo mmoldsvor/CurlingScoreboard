@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import JSONField
+import json
 
 
 # Create your models here.
@@ -12,8 +13,7 @@ class Round(models.Model):
     match = models.CharField(max_length=120)
 
     def get_pos(self):
-        return self.pos
-
+        return json.dumps(self.pos) 
 
 class Scoreboard(models.Model):
     winner = models.CharField(max_length=1)

@@ -1,19 +1,52 @@
-#house {
+/*#house {
     width : 30%;
 
+}*/
+body{
+    display: grid;
+    grid-template-areas:
+    "head head head"
+    "main main main"
+    "foot foot foot";
 }
+
+header{
+    grid-area: head;
+}
+/*nav{
+    grid-area: nav;
+}*/
+main{
+    grid-area: main;
+}
+footer{
+    grid-area: foot;
+}
+.container{
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    grid-template-columns: repeat(3,1fr);
+    grid-template-rows: repeat(2,1fr);
+    justify-content: space-around;
+    align-items: center;
+    align-content: center;
+}
+.house{
+    width: fit-content;
+    grid-row: span 2;
+}
+
+.tables{
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    grid-template-rows: repeat(2,3fr);
+    /*width: fit-content;*/
+    justify-content: space-around;
+}
+
+
 table, th, td {
     border: 1px solid black;
-  }
-
-.poeng {
-    position: fixed;
-    left: 500px;
-    top: 95px;
-}
-
-.tid {
-    position: fixed;
-    left: 500px;
-    top: 200px;
 }
