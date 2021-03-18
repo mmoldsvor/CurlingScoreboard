@@ -19,10 +19,15 @@ class StateMachine:
         self.current_stone = 0
         self.current_state = current_state
         self.event_handlers = event_handlers if not None else []
-        self.motion_or_not = {} 
-
+        self.motion_table = {} 
+        self.motion_list = []
         
     def run(self, item):
+        motion = (item & 2) >> 1
+        identifier = (item & ~3) >> 2
+        if identifier in self.motion_table:
+            self.update_motion_table(identifier, motion)
+
         if self.current_state == State.NO_TOUCH_NO_MOTION:
             self.no_touch_no_motion_state(item)
 
@@ -41,10 +46,22 @@ class StateMachine:
         elif self.current_state == State.NO_MOTION:
             self.no_motion_state(item)
 
-        motion = (item & 2) >> 1
-        identifier = (item & ~3) >> 2
-        if identifier in self.motion_or_not and not self.check_id(identifier):
-            self.motion_or_not[identifier] = motion
+    def update_motion_table(self, identifier, motion):
+        if identifier not in self.motion_list:
+            self.motion_list.append(identifier)
+
+        self.motion_table[identifier] = motion
+        self.propagate_motion_table()
+
+    def remove_motion_table(self, identifier):
+        self.motion_table.pop(identifier)
+        self.motion_list.remove(identifier)
+
+        self.propagate_motion_table()
+
+    def propagate_motion_table(self):
+        for event_handler in self.event_handlers:
+            event_handler.motion_table_update(self.motion_table)
 
     def propagate_events(self):
         for event_handler in self.event_handlers:
@@ -61,7 +78,6 @@ class StateMachine:
             if self.current_state == State.NO_MOTION:
                 event_handler.no_motion_event()
 
-
     def check_id(self, identifier):
         return self.current_stone == identifier
         
@@ -70,17 +86,16 @@ class StateMachine:
         motion = (item & 2) >> 1
         identifier = (item & ~3) >> 2
 
-        if touch or identifier in self.motion_or_not:
-            self.motion_or_not[identifier] = 0
-
-        if touch:
+        if touch and identifier not in self.motion_table.keys():
             self.current_stone = identifier
             self.current_state = State.TOUCH
             self.propagate_events()
+            
+            self.update_motion_table(identifier, motion)
 
             self.touch_state(item)
 
-        if motion:
+        if motion and identifier not in self.motion_table.keys():
             self.current_stone = identifier
             self.current_state = State.MOTION_NO_TOUCH
             self.propagate_events()
@@ -94,6 +109,7 @@ class StateMachine:
 
         if self.check_id(identifier) and not touch:
             self.current_state = State.NO_TOUCH_NO_MOTION
+            self.remove_motion_table(identifier)
             self.propagate_events()
 
         elif self.check_id(identifier) and motion:
@@ -106,7 +122,7 @@ class StateMachine:
         touch = item & 1
         motion = (item & 2) >> 1
         identifier = (item & ~3) >> 2
-        
+
         if self.check_id(identifier) and not motion:
             self.current_state = State.NO_TOUCH_NO_MOTION
             self.propagate_events()
@@ -115,8 +131,9 @@ class StateMachine:
             self.current_state = State.TOUCH_MOTION
             self.propagate_events()
 
+            self.update_motion_table(identifier, motion)
+
             self.touch_motion_state(item)
-        
 
     def touch_motion_state(self, item):
         touch = item & 1
@@ -139,9 +156,7 @@ class StateMachine:
             self.no_motion_state(item)
 
     def no_motion_state(self, item):
-        
-
-        if not sum(self.motion_or_not.values()):
+        if not sum(self.motion_table.values()):
             self.current_state = State.NO_TOUCH_NO_MOTION
             
             self.propagate_events()

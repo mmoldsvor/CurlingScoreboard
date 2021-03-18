@@ -1,44 +1,45 @@
 from graphviz import Digraph
 
 def generate_graph(active_node):
-    d = Digraph('G', filename=f'state_machine_{active_node}.gv', format='svg')
+    d = Digraph('G', filename=f'state_machine_{active_node}.gv', format='png')
+    d.graph_attr.update(size="15,15")
 
     with d.subgraph() as s:
         s.attr(rank='same')
         if active_node == 'no_touch_no_motion':
-            s.node('no_touch_no_motion', label='Default\nState', shape='doublecircle', fillcolor='#7eeda5', style='filled')
+            s.node('no_touch_no_motion', label='Default\nState', shape='doublecircle', fillcolor='#7eeda5', style='filled', fontname = "calibri")
         else:
-            s.node('no_touch_no_motion', label='Default\nState', shape='doublecircle')
+            s.node('no_touch_no_motion', label='Default\nState', shape='doublecircle', fontname = "calibri")
 
     with d.subgraph() as s:
         s.attr(rank='same')
         if active_node == 'touch':
-            s.node('touch', label='T:1 M:0', shape='circle', fillcolor='#7eeda5', style='filled')
+            s.node('touch', label='T:1 M:0', shape='circle', fillcolor='#7eeda5', style='filled', fontname = "calibri")
         else:
-            s.node('touch', label='T:1 M:0', shape='circle')
+            s.node('touch', label='T:1 M:0', shape='circle', fontname = "calibri")
 
         if active_node == 'motion_no_touch':
-            s.node('motion_no_touch', label='T:0 M:1', shape='circle', fillcolor='#7eeda5', style='filled')
+            s.node('motion_no_touch', label='T:0 M:1', shape='circle', fillcolor='#7eeda5', style='filled', fontname = "calibri")
         else:
-            s.node('motion_no_touch', label='T:0 M:1', shape='circle')
+            s.node('motion_no_touch', label='T:0 M:1', shape='circle', fontname = "calibri")
 
         if active_node == 'no_motion':
-            s.node('no_motion', label='T:0 M:0', shape='circle', fillcolor='#7eeda5', style='filled')
+            s.node('no_motion', label='T:0 M:0', shape='circle', fillcolor='#7eeda5', style='filled', fontname = "calibri")
         else:
-            s.node('no_motion', label='T:0 M:0', shape='circle')
+            s.node('no_motion', label='T:0 M:0', shape='circle', fontname = "calibri")
             
 
     with d.subgraph() as s:
         s.attr(rank='same')
         if active_node == 'touch_motion':
-            s.node('touch_motion', label='T:1 M:1', shape='circle', fillcolor='#7eeda5', style='filled')
+            s.node('touch_motion', label='T:1 M:1', shape='circle', fillcolor='#7eeda5', style='filled', fontname = "calibri")
         else:
-            s.node('touch_motion', label='T:1 M:1', shape='circle')
+            s.node('touch_motion', label='T:1 M:1', shape='circle', fontname = "calibri")
 
         if active_node == 'motion':
-            s.node('motion', label='T:0 M:1', shape='circle', fillcolor='#7eeda5', style='filled')
+            s.node('motion', label='T:0 M:1', shape='circle', fillcolor='#7eeda5', style='filled', fontname = "calibri")
         else:
-            s.node('motion', label='T:0 M:1', shape='circle')
+            s.node('motion', label='T:0 M:1', shape='circle', fontname = "calibri")
     
 
     d.edge('no_touch_no_motion', 'touch')
@@ -57,5 +58,3 @@ if __name__ == '__main__':
     nodes = ['no_touch_no_motion', 'touch', 'motion_no_touch', 'touch_motion', 'motion', 'no_motion', 'none']
     for node in nodes:
         generate_graph(node)
-
-    

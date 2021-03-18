@@ -23,8 +23,7 @@ class CommunicationThread:
         if len(state):
             value = int.from_bytes(state, byteorder='little')
             
-            self.queue.put(value)
-                     
+            self.queue.put(value)      
 
     def connect_to_device(self, port: ListPortInfo):
         with Serial(port.device) as serial_device:
@@ -32,7 +31,6 @@ class CommunicationThread:
             while True:        
                 self.process_value(serial_device.read())
                 
-
     def run(self):
         while True:
             try:
