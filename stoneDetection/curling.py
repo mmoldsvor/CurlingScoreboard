@@ -12,6 +12,7 @@ import numpy as np
 import logging
 import json
 import requests
+import random
 
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s -  %(levelname)s-  %(message)s')
@@ -288,6 +289,23 @@ def sendData(pos,points):
             print("Noe gikk galt.")
             print("HTTP-Status: {}\n".format(response.status_code))
 
+def getImage(end,throw):
+    imNum = random.randint(1,12)
+    impath = "vancouver/scaled/"+str(imNum)+".png"
+    image = cv2.imread(impath)
+
+    if throw == 16:
+        last = True
+    else:
+        last = False
+
+    pos, points = getPositions(image,last)
+    sendData(pos,points)
+
+    main(image)
+
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("-i", "--image",help="path to imput image")
@@ -302,6 +320,5 @@ if __name__ == "__main__":
 
     pos, points = getPositions(image,False)
     sendData(pos,points)
-
 
     main(image)
