@@ -4,7 +4,7 @@ import json
 
 
 class Match(models.Model):
-    match = models.CharField(max_length=120)
+    matchName = models.CharField(max_length=120)
     camId = models.IntegerField()
 
 
@@ -18,6 +18,9 @@ class Round(models.Model):
 
     def get_pos(self):
         return json.dumps(self.pos) 
+
+    def get_match(self):
+        return self.match.match
 
 class Scoreboard(models.Model):
     winner = models.CharField(max_length=1)

@@ -5,14 +5,20 @@ from django.http import QueryDict, HttpResponse
 from curlingapp.models import Round, Scoreboard, Match
 
 
-def match(request,match):
+def live(request,match):
     context = {}
-    matchid = Match.objects.get(match=match)
-    print(matchid)
-    pos = Round.objects.filter(match=matchid).latest('timestamp').get_pos()
+    matchid = Match.objects.get(matchName=match)
+    thrw = Round.objects.filter(match=matchid).latest('timestamp')
+    pos = thrw.get_pos()
     context['positions'] = pos
     ends = Scoreboard.objects.filter(match=matchid)
     
+    prev = Round.objects.get(pk=thrw.pk-1)
+
+    context['match'] = matchid.matchName
+    context['prev'] = prev
+
+
     yellow = [0]*10
     red = [0]*10
 
@@ -29,7 +35,45 @@ def match(request,match):
     context['red'] = red
     context['yellow'] = yellow
 
-    return render(request, "curlingapp/index.html",context)
+    return render(request, "curlingapp/live.html",context)
+
+def past(request,match,end,throw):
+    context = {}
+    matchid = Match.objects.get(matchName=match)
+    thrw = Round.objects.get(match=matchid,end=end,throw=throw)
+    pos = thrw.get_pos()
+    #pos = Round.objects.filter(match=matchid).latest('timestamp').get_pos()
+    context['positions'] = pos
+    #ends = Scoreboard.objects.filter(match=matchid)
+
+    try:
+        next = Round.objects.get(pk=thrw.pk+1)
+    except:
+        next = None
+
+    prev = Round.objects.get(pk=thrw.pk-1)
+
+    context['match'] = matchid.matchName
+    context['next'] = next
+    context['prev'] = prev
+    
+    #yellow = [0]*10
+    #red = [0]*10
+
+    #for e in ends:
+    #    end, team, score = e.get_score()
+    #    if team == "yellow":
+    #        yellow[end-1] = score
+    #    elif team == "red":
+    #        red[end-1] = score
+    
+    #context['totalRed'] = sum(red)
+    #context['totalYellow'] = sum(yellow)
+
+    #context['red'] = red
+    #context['yellow'] = yellow
+
+    return render(request, "curlingapp/past.html",context)
 
 def send_pos(request,camId):
     if request.method == "POST":

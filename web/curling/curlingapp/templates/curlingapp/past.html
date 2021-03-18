@@ -34,8 +34,18 @@
             var data  = '{{ positions|safe }}';
           </script>
           <script src="{% static 'positions.js' %}"></script>
+          <div>
+            <a href="{% url 'past' match prev.end prev.throw %}">Previous</a>
+            {% if next != None %}
+              <a href="{% url 'past' match next.end next.throw %}">Next</a>
+            {% else %}
+              <a href="{% url 'live' match%}">Next</a>
+            {% endif %}
+              <a href="{% url 'live' match %}">Live</a>
+          </div>
         </div>
 
+        <!--
         <div class="tables">
           <div class="poeng">
           <table style="text-align: center" height="200px" width="500px" class="poeng">
@@ -83,6 +93,7 @@
             </table>
           </div>
         </div>
+      -->
       </div>  
     </main>
     <footer>
