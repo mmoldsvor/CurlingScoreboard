@@ -21,6 +21,9 @@ class Scoreboard(models.Model):
     points = models.IntegerField()
     match = models.CharField(max_length=120)
 
+    def get_score(self):
+        return self.end, self.winner, self.points
+
 
 
 

@@ -4,15 +4,31 @@ from django.middleware import csrf
 from django.http import QueryDict, HttpResponse
 from curlingapp.models import Round, Scoreboard
 
-#pos = '{"center": {"x": "960.5", "y": "591.5", "rad": "485.1"}, "red": [{"x": "-56.0", "y": "-200.0", "rad": "37.1628", "color": "red"}], "yellow": [{"x": "55.0", "y": "-92.0", "rad": "38.0952", "color": "yellow"}, {"x": "-261.0", "y": "-369.0", "rad": "38.3616", "color": "yellow"}]}'
 
-# Create your views here.
-def index(request):
+def match(request,match):
     print("index")
     context = {}
     pos = Round.objects.latest('timestamp').get_pos()
     print("pos",pos)
     context['positions'] = pos
+    ends = Scoreboard.objects.filter(match=match)
+    
+    yellow = [0]*10
+    red = [0]*10
+
+    for e in ends:
+        end, team, score = e.get_score()
+        if team == "yellow":
+            yellow[end-1] = score
+        elif team == "red":
+            red[end-1] = score
+    
+    context['totalRed'] = sum(red)
+    context['totalYellow'] = sum(yellow)
+
+    context['red'] = red
+    context['yellow'] = yellow
+
     return render(request, "curlingapp/index.html",context)
 
 def send_pos(request):

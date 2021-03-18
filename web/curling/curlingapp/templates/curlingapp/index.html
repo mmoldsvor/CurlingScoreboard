@@ -12,80 +12,84 @@
 
   </head>
   <body>
+    <header>
+       <h1>Curling scoreboard</h1>
+    </header>
+    <!--<nav>
+      <h5>Meny</h5>
+      <ul>
+        <li>Dagens kamper</li>
+        <li>Kontakt oss</li>
+        <li>FAQ</li>
+      </ul>
+    </nav>-->
+    <main>
+      <div class="container">
+        <div class="house" id="house">
+          <canvas id="myCanvas"
+          style="border:1px solid #c3c3c3;">
+          Your browser does not support the canvas element.
+          </canvas>
+          <script type="text/javascript">
+            var data  = '{{ positions|safe }}';
+          </script>
+          <script src="{% static 'positions.js' %}"></script>
+        </div>
 
-    <h1>Curling scoreboard</h1>
+        <div class="tables">
+          <div class="poeng">
+          <table style="text-align: center" height="200px" width="500px" class="poeng">
+            <tr>
+              <th>Team</th>
+              <th>1</th>
+              <th>2</th>
+              <th>3</th>
+              <th>4</th>
+              <th>5</th>
+              <th>6</th>
+              <th>7</th>
+              <th>8</th>
+              <th>9</th>
+              <th>10</th>
+              <th>Total</th>
+            </tr>
+            <tr>
+              <td>Gul</td>
+            {% for e in yellow %}
+              <td>{{ e }}</td>
+            {% endfor %}
+              <td>{{ totalYellow }}</td>
+            </tr>
+            <tr>
+              <td>Rød</td>
+            {% for e in red %}
+              <td>{{ e }}</td>
+            {% endfor %}
+              <td>{{ totalRed }}</td>
+            </tr>
+          </table>
+          </div>
 
-  <div id="house">
-  <canvas id="myCanvas"
-  style="border:1px solid #c3c3c3;">
-  Your browser does not support the canvas element.
-  </canvas>
-  </div>
-
-  <script type="text/javascript">
-    var data  = '{{ positions|safe }}';
-  </script>
-  <script src="{% static 'positions.js' %}"></script>
-
-  <div>
-    <table style="width:50%" class="poeng">
-      <tr>
-        <th>Team</th>
-        <th>1</th>
-        <th>2</th>
-        <th>3</th>
-        <th>4</th>
-        <th>5</th>
-        <th>6</th>
-        <th>7</th>
-        <th>8</th>
-        <th>9</th>
-        <th>10</th>
-        <th>Total</th>
-      </tr>
-      <tr>
-        <td>NOR</td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-      </tr>
-      <tr>
-        <td>CAN</td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-      </tr>
-    </table>
-  </div>
-
-  <div>
-    <table style="width:100px" class="tid">
-      <tr>
-        <th>NOR</th>
-        <th>CAN</th>
-      </tr>
-      <tr>
-        <td>12:33</td>
-        <td>14:37</td>
-      </tr>
-    </table>
-  </div>
+          <div class="tid">
+            <table style="text-align:center" width="200px" height="150px" class="tid">
+              <tr>
+                <th>NOR</th>
+                <th>CAN</th>
+              </tr>
+              <tr>
+                <td>12:33</td>
+                <td>14:37</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </div>  
+    </main>
+    <footer>
+        <p></p>
+        <p>Laget av gruppe 13 - Innovasjonsprosjekt Elsys</p>
+    </footer>
+  
   </body>
 </html>
 
