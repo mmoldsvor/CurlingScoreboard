@@ -2,7 +2,7 @@ import json
 from django.shortcuts import render
 from django.middleware import csrf
 from django.http import QueryDict, HttpResponse
-from curlingapp.models import Round, Scoreboard, Match
+from curlingapp.models import Round, Scoreboard, Match, MatchForm
 
 
 def live(request,match):
@@ -17,6 +17,7 @@ def live(request,match):
 
     context['match'] = matchid.matchName
     context['prev'] = prev
+    context['round'] = thrw
 
 
     yellow = [0]*10
@@ -54,26 +55,30 @@ def past(request,match,end,throw):
     prev = Round.objects.get(pk=thrw.pk-1)
 
     context['match'] = matchid.matchName
+    context['round'] = thrw
     context['next'] = next
     context['prev'] = prev
     
-    #yellow = [0]*10
-    #red = [0]*10
-
-    #for e in ends:
-    #    end, team, score = e.get_score()
-    #    if team == "yellow":
-    #        yellow[end-1] = score
-    #    elif team == "red":
-    #        red[end-1] = score
-    
-    #context['totalRed'] = sum(red)
-    #context['totalYellow'] = sum(yellow)
-
-    #context['red'] = red
-    #context['yellow'] = yellow
 
     return render(request, "curlingapp/past.html",context)
+
+def matches(request):
+    context = {}
+    #ends = Scoreboard.objects.filter(match=matchid)
+    m = Match.objects.all()
+
+    context['matches'] = m
+
+    # create object of form 
+    form = MatchForm(request.POST or None, request.FILES or None) 
+      
+    # check if form data is valid 
+    if form.is_valid(): 
+        # save the form data to model 
+        form.save() 
+    
+    context['form'] = form
+    return render(request, "curlingapp/matches.html",context)
 
 def send_pos(request,camId):
     if request.method == "POST":

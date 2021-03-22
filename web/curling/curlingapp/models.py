@@ -1,12 +1,19 @@
 from django.db import models
+from django.forms import ModelForm
 from django.db.models import JSONField
 import json
 
 
 class Match(models.Model):
-    matchName = models.CharField(max_length=120)
-    camId = models.IntegerField()
+    matchName = models.CharField("Match",max_length=120)
+    camId = models.IntegerField("Sheet")
+    redTeam = models.CharField("Red Team",max_length=120,default="Red")
+    yellowTeam = models.CharField("Yellow Team",max_length=120,default="Yellow")
 
+class MatchForm(ModelForm):
+    class Meta:
+        model = Match
+        fields = ['matchName','camId','redTeam','yellowTeam']
 
 class Round(models.Model):
     pos = JSONField()
@@ -14,7 +21,6 @@ class Round(models.Model):
     end = models.IntegerField()
     throw = models.IntegerField()
     match = models.ForeignKey(Match,on_delete=models.CASCADE)
-    #match = models.CharField(max_length=120)
 
     def get_pos(self):
         return json.dumps(self.pos) 
