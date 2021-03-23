@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s -  %(levelname)s-  
 logging.debug('Start of program')
 
 camId = 1
-SITE_URL = "http://127.0.0.1:8000/sendPos/"+str(camId)+"/" # Where to send data.
+SITE_URL = "https://gruppe13.innovasjon.ed.ntnu.no/sendPos/"+str(camId)+"/" # Where to send data.
 
 
 
