@@ -22,8 +22,6 @@ camId = 1
 SITE_URL = "https://gruppe13.innovasjon.ed.ntnu.no/sendPos/"+str(camId)+"/" # Where to send data.
 
 
-
-
 #vancouver
 red = np.uint8([[[199,61,64]]])
 yellow = np.uint8([[[216,201,36]]])
@@ -289,17 +287,17 @@ def sendData(pos,points):
             print("Noe gikk galt.")
             print("HTTP-Status: {}\n".format(response.status_code))
 
-def getImage(end,throw):
+def takePicture():
     imNum = random.randint(1,12)
     impath = "vancouver/scaled/"+str(imNum)+".png"
     image = cv2.imread(impath)
 
-    if throw == 16:
-        last = True
-    else:
-        last = False
+    #if throw == 16:
+    #    last = True
+    #else:
+    #    last = False
 
-    pos, points = getPositions(image,last)
+    pos, points = getPositions(image,True)
     sendData(pos,points)
 
     main(image)
