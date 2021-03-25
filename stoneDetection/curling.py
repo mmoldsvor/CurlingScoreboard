@@ -76,7 +76,6 @@ def colorTresh(img,H):
         clrTresh = cv2.inRange(imHsv,(hMin,lowS,lowV),(hMax,highS,highV))
 
 
-    showIm("red",clrTresh,0.5)
     gausMask = cv2.GaussianBlur(clrTresh,(gaus,gaus),0)
     output = cv2.bitwise_and(gausMask,gausMask,mask=clrTresh)
 
@@ -114,10 +113,10 @@ def drawCircles(img,color,circles):
             a, b, r = pt[0], pt[1], pt[2]
 
             # Draw the circumference of the circle. 
-            cv2.circle(output, (a, b), r, color, 1)
+            cv2.circle(output, (a, b), r, color, 3)
 
             # Draw a small circle (of radius 1) to show the center. 
-            cv2.circle(output, (a, b), 1, color, 3)
+            cv2.circle(output, (a, b), 1, color, 5)
 
     return output
 
@@ -162,9 +161,6 @@ def calcPoints(rCirc,yCirc,house):
     if len(mid) == 0:
         return "ingen", 0
 
-#    for i in range(1,len(midSort)):
-#        dist = midSort[i]- midSort[i-1]
-
 
     winner = midSort[0][1]
     score = 0
@@ -185,21 +181,30 @@ def calcPoints(rCirc,yCirc,house):
 def getPositions(image,points):
     """Return positions of stones in image. Returns points if True"""
 
+    # Generate mask for each color 
     redMask = colorTresh(image,int(redHsv[0,0,0]))
     yellowMask = colorTresh(image,int(yellowHsv[0,0,0]))
     outerMask = colorTresh(image,int(outerHsv[0,0,0]))
     innerMask = colorTresh(image,int(innerHsv[0,0,0]))
 
+    showIm("red",redMask,0.5)
+    showIm("yellow",yellowMask,0.5)
+    showIm("outer",outerMask,0.5)
+
+    # Find circles in each mask
     redCircles = detectCircle(redMask,5,stoneR-radMarg,stoneR+radMarg)
     yellowCircles = detectCircle(yellowMask,5,stoneR-radMarg,stoneR+radMarg)
     outerCircle = detectCircle(outerMask,5,outerR-outerMarg,outerR+outerMarg)
     innerCircle = detectCircle(innerMask,5,innerR-innerMarg,innerR+innerMarg)
 
+    # Increase radius to the outer edge of the stone
     if redCircles is not None:
         changeRadius(redCircles,1.332)
     if yellowCircles is not None:
         changeRadius(yellowCircles,1.332)
 
+
+    # Add data to position dict to send to website
     positions = {}
     centerX = outerCircle[0,0]
     centerY = outerCircle[0,1]
@@ -226,8 +231,8 @@ def getPositions(image,points):
             stone = {"x" : str(x),"y": str(y), "rad" : str(rad), "color" : "yellow"}
             positions["yellow"].append(stone)
 
-    #dump = json.dumps(positions)
 
+    # Calculates points to be sent to website
     if points:
         winner, score = calcPoints(redCircles,yellowCircles,outerCircle[0])
         points = {"winner" : winner, "score" : score}
@@ -263,7 +268,7 @@ def main(image):
     output = drawCircles(output,(166,0,255),outerCircle)
     output = drawCircles(output,(0,255,100),innerCircle)
 
-    showIm("out",output,1)
+    showIm("out",output,0.5)
     cv2.waitKey(0)
 
 
