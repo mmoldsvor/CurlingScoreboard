@@ -19,9 +19,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s -  %(levelname)s-  
 logging.debug('Start of program')
 
 camId = 1
-SITE_URL = "http://127.0.0.1:8000/sendPos/"+str(camId)+"/" # Where to send data.
-
-
+SITE_URL = "https://gruppe13.innovasjon.ed.ntnu.no/sendPos/"+str(camId)+"/" # Where to send data.
 
 
 #vancouver
@@ -289,17 +287,17 @@ def sendData(pos,points):
             print("Noe gikk galt.")
             print("HTTP-Status: {}\n".format(response.status_code))
 
-def getImage(end,throw):
+def takePicture():
     imNum = random.randint(1,12)
     impath = "vancouver/scaled/"+str(imNum)+".png"
     image = cv2.imread(impath)
 
-    if throw == 16:
-        last = True
-    else:
-        last = False
+    #if throw == 16:
+    #    last = True
+    #else:
+    #    last = False
 
-    pos, points = getPositions(image,last)
+    pos, points = getPositions(image,True)
     sendData(pos,points)
 
     main(image)

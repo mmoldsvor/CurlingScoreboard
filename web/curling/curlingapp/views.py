@@ -86,26 +86,27 @@ def send_pos(request,camId):
         print(data)
         print(type(data))
         pos = data['pos']
-
         points = data['points']
+
 
         matchid = Match.objects.filter(camId=camId).last()
         print(matchid)
 
-        if points != None:
+        prev = Round.objects.filter(match=matchid).latest('timestamp')
+        end = prev.end
+        throw = prev.throw
+
+        if throw > 16:
+            end += 1
+            throw = 1
+        elif throw == 16:
             winner = points["winner"]
             score = points["score"]
-            s = Scoreboard(end=1,match=matchid,winner=winner,points=score)
+            s = Scoreboard(end=end,match=matchid,winner=winner,points=score)
             s.save()
 
-        r = Round(pos=pos,end=1,throw=4,match=matchid)
+        r = Round(pos=pos,end=end,throw=throw,match=matchid)
         r.save()
-
-
-
-
-        #print("pos",pos)
-        #print("points",points)
 
     elif request.method == "GET":
         csrf.get_token(request)
