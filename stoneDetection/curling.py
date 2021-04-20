@@ -179,7 +179,7 @@ def calcPoints(rCirc,yCirc,house):
     return winner, score
 
 def getPositions(image,points):
-    """Return positions of stones in image. Returns points if True"""
+    """Return positions and points of stones in image."""
 
     # Generate mask for each color 
     redMask = colorTresh(image,int(redHsv[0,0,0]))
@@ -297,15 +297,8 @@ def takePicture():
     impath = "vancouver/scaled/"+str(imNum)+".png"
     image = cv2.imread(impath)
 
-    #if throw == 16:
-    #    last = True
-    #else:
-    #    last = False
-
     pos, points = getPositions(image,True)
     sendData(pos,points)
-
-    main(image)
 
 
 
@@ -315,13 +308,10 @@ if __name__ == "__main__":
     args = vars(ap.parse_args())
 
     if args["image"]  == None:
-        imPath = "curling.png"
+        takePicture()
     else:
         imPath = args["image"]
-
-    image = cv2.imread(imPath)
-
-    pos, points = getPositions(image,False)
-    sendData(pos,points)
-
-    main(image)
+        image = cv2.imread(imPath)
+        pos, points = getPositions(image,True)
+        sendData(pos,points)
+        main(image)
